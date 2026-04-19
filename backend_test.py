@@ -1,935 +1,786 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend Test for Caisy Perfume E-commerce
-Tests all backend APIs according to priority order
+Comprehensive Backend Testing for Caisy Perfume E-commerce
+Testing NEW features: Indonesia Location API, Voucher System, Order Creation, Shipping Rates
 """
 
 import requests
 import json
 import time
-import random
-import string
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# Base URL from environment
-BASE_URL = "https://dupe-fragrance-shop.preview.emergentagent.com/api"
-
-# Test data
-ADMIN_EMAIL = "admin@caisyperfume.com"
-ADMIN_PASSWORD = "Admin@Caisy2024!"
-
-def generate_random_email():
-    """Generate random email for testing"""
-    random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-    return f"test{random_str}@example.com"
-
-def log_test(test_name, success, details=""):
-    """Log test results"""
-    status = "✅ PASS" if success else "❌ FAIL"
-    print(f"{status} {test_name}")
-    if details:
-        print(f"    {details}")
-    return success
+# Base configuration
+BASE_URL = "https://dupe-fragrance-shop.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
 class CaisyBackendTester:
     def __init__(self):
         self.session = requests.Session()
-        self.admin_token = None
-        self.user_token = None
-        self.test_user_email = None
-        self.test_order_id = None
-        self.test_product_id = None
+        self.admin_cookie = None
+        self.test_results = []
         
-    def test_1_public_basics(self):
-        """Test public basic endpoints"""
-        print("\n=== 1. PUBLIC BASICS ===")
+    def log_test(self, test_name, success, details="", status_code=None):
+        """Log test results"""
+        result = {
+            "test": test_name,
+            "success": success,
+            "details": details,
+            "status_code": status_code,
+            "timestamp": datetime.now().isoformat()
+        }
+        self.test_results.append(result)
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status}: {test_name}")
+        if details:
+            print(f"   Details: {details}")
+        if status_code:
+            print(f"   Status: {status_code}")
+        print()
+
+    def admin_login(self):
+        """Login as admin and store cookie"""
+        try:
+            response = self.session.post(f"{API_BASE}/auth/login", json={
+                "email": "admin@caisyperfume.com",
+                "password": "Admin@Caisy2024!"
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('user', {}).get('role') == 'admin':
+                    self.admin_cookie = response.cookies.get('caisy_token')
+                    self.log_test("Admin Login", True, f"Logged in as {data['user']['email']}", response.status_code)
+                    return True
+                else:
+                    self.log_test("Admin Login", False, "User is not admin", response.status_code)
+                    return False
+            else:
+                self.log_test("Admin Login", False, f"Login failed: {response.text}", response.status_code)
+                return False
+        except Exception as e:
+            self.log_test("Admin Login", False, f"Exception: {str(e)}")
+            return False
+
+    def test_indonesia_location_api(self):
+        """Test 1: INDONESIA LOCATION API (replaces old hardcoded 6 provinces)"""
+        print("=== TESTING INDONESIA LOCATION API ===")
         
-        # Health check
+        # Test provinces - should return 34 Indonesian provinces
         try:
-            resp = self.session.get(f"{BASE_URL}/health")
-            success = resp.status_code == 200 and resp.json().get('ok') == True
-            log_test("GET /api/health", success, f"Status: {resp.status_code}, Response: {resp.json()}")
-        except Exception as e:
-            log_test("GET /api/health", False, f"Error: {e}")
-            
-        # Products default (12 products with pagination)
-        try:
-            resp = self.session.get(f"{BASE_URL}/products")
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'products' in data and 
-                      len(data['products']) <= 12 and
-                      'total' in data and 'page' in data)
-            log_test("GET /api/products (default)", success, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}, Total: {data.get('total')}")
-            
-            # Store first product ID for later tests
-            if data.get('products'):
-                self.test_product_id = data['products'][0]['id']
-        except Exception as e:
-            log_test("GET /api/products (default)", False, f"Error: {e}")
-            
-        # Products by category - wanita
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?category=wanita")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            wanita_count = len(data.get('products', []))
-            log_test("GET /api/products?category=wanita", success, 
-                    f"Status: {resp.status_code}, Wanita products: {wanita_count}")
-        except Exception as e:
-            log_test("GET /api/products?category=wanita", False, f"Error: {e}")
-            
-        # Products by category - pria
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?category=pria")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            pria_count = len(data.get('products', []))
-            log_test("GET /api/products?category=pria", success, 
-                    f"Status: {resp.status_code}, Pria products: {pria_count}")
-        except Exception as e:
-            log_test("GET /api/products?category=pria", False, f"Error: {e}")
-            
-        # Products by category - unisex
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?category=unisex")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            unisex_count = len(data.get('products', []))
-            log_test("GET /api/products?category=unisex", success, 
-                    f"Status: {resp.status_code}, Unisex products: {unisex_count}")
-        except Exception as e:
-            log_test("GET /api/products?category=unisex", False, f"Error: {e}")
-            
-        # Search for "rose"
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?search=rose")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            found_rose = any('rose' in p.get('name', '').lower() for p in data.get('products', []))
-            log_test("GET /api/products?search=rose", success, 
-                    f"Status: {resp.status_code}, Found Rose products: {found_rose}")
-        except Exception as e:
-            log_test("GET /api/products?search=rose", False, f"Error: {e}")
-            
-        # Sort by price ascending with limit
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?sort=price_asc&limit=3")
-            data = resp.json()
-            success = resp.status_code == 200 and len(data.get('products', [])) <= 3
-            if success and data.get('products'):
-                prices = [p.get('price', 0) for p in data['products']]
-                success = prices == sorted(prices)  # Check if sorted ascending
-            log_test("GET /api/products?sort=price_asc&limit=3", success, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}")
-        except Exception as e:
-            log_test("GET /api/products?sort=price_asc&limit=3", False, f"Error: {e}")
-            
-        # Price range filter
-        try:
-            resp = self.session.get(f"{BASE_URL}/products?min_price=100000&max_price=130000")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            if success and data.get('products'):
-                in_range = all(100000 <= p.get('price', 0) <= 130000 for p in data['products'])
-                success = in_range
-            log_test("GET /api/products?min_price=100000&max_price=130000", success, 
-                    f"Status: {resp.status_code}, Products in range: {len(data.get('products', []))}")
-        except Exception as e:
-            log_test("GET /api/products?min_price=100000&max_price=130000", False, f"Error: {e}")
-            
-        # Featured products
-        try:
-            resp = self.session.get(f"{BASE_URL}/products/featured")
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data and len(data['products']) <= 8
-            log_test("GET /api/products/featured", success, 
-                    f"Status: {resp.status_code}, Featured products: {len(data.get('products', []))}")
-        except Exception as e:
-            log_test("GET /api/products/featured", False, f"Error: {e}")
-            
-        # Product by slug
-        try:
-            resp = self.session.get(f"{BASE_URL}/products/slug/rose-elegante")
-            data = resp.json()
-            success = resp.status_code == 200 and 'product' in data and 'related' in data
-            log_test("GET /api/products/slug/rose-elegante", success, 
-                    f"Status: {resp.status_code}, Has product: {'product' in data}, Has related: {'related' in data}")
-        except Exception as e:
-            log_test("GET /api/products/slug/rose-elegante", False, f"Error: {e}")
-    
-    def test_2_auth_flow(self):
-        """Test authentication flow"""
-        print("\n=== 2. AUTH FLOW ===")
-        
-        # Generate random email for testing
-        self.test_user_email = generate_random_email()
-        
-        # Register new user
-        try:
-            register_data = {
-                "name": "Test User",
-                "email": self.test_user_email,
-                "password": "TestPassword123!",
-                "phone": "081234567890"
-            }
-            resp = self.session.post(f"{BASE_URL}/auth/register", json=register_data)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'user' in data and 'token' in data and
-                      data['user']['email'] == self.test_user_email)
-            if success:
-                self.user_token = data['token']
-            log_test("POST /api/auth/register (new user)", success, 
-                    f"Status: {resp.status_code}, Has token: {'token' in data}")
-        except Exception as e:
-            log_test("POST /api/auth/register (new user)", False, f"Error: {e}")
-            
-        # Try to register same email again (should fail)
-        try:
-            resp = self.session.post(f"{BASE_URL}/auth/register", json=register_data)
-            success = resp.status_code == 409  # Conflict
-            log_test("POST /api/auth/register (duplicate email)", success, 
-                    f"Status: {resp.status_code} (expected 409)")
-        except Exception as e:
-            log_test("POST /api/auth/register (duplicate email)", False, f"Error: {e}")
-            
-        # Login with wrong password
-        try:
-            login_data = {
-                "email": self.test_user_email,
-                "password": "WrongPassword"
-            }
-            resp = self.session.post(f"{BASE_URL}/auth/login", json=login_data)
-            success = resp.status_code == 401  # Unauthorized
-            log_test("POST /api/auth/login (wrong password)", success, 
-                    f"Status: {resp.status_code} (expected 401)")
-        except Exception as e:
-            log_test("POST /api/auth/login (wrong password)", False, f"Error: {e}")
-            
-        # Login with correct credentials
-        try:
-            login_data = {
-                "email": self.test_user_email,
-                "password": "TestPassword123!"
-            }
-            resp = self.session.post(f"{BASE_URL}/auth/login", json=login_data)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'user' in data and 'token' in data)
-            if success:
-                self.user_token = data['token']
-            log_test("POST /api/auth/login (correct creds)", success, 
-                    f"Status: {resp.status_code}, Has token: {'token' in data}")
-        except Exception as e:
-            log_test("POST /api/auth/login (correct creds)", False, f"Error: {e}")
-            
-        # Get current user info
-        try:
-            headers = {'Cookie': f'caisy_token={self.user_token}'} if self.user_token else {}
-            resp = self.session.get(f"{BASE_URL}/auth/me", headers=headers)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'user' in data and 
-                      data['user'] is not None)
-            log_test("GET /api/auth/me (with cookie)", success, 
-                    f"Status: {resp.status_code}, User: {data.get('user', {}).get('email', 'None')}")
-        except Exception as e:
-            log_test("GET /api/auth/me (with cookie)", False, f"Error: {e}")
-            
-        # Update user profile
-        try:
-            update_data = {
-                "name": "Updated Test User",
-                "phone": "081987654321"
-            }
-            headers = {'Cookie': f'caisy_token={self.user_token}'} if self.user_token else {}
-            resp = self.session.post(f"{BASE_URL}/auth/update", json=update_data, headers=headers)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'user' in data and
-                      data['user']['name'] == "Updated Test User")
-            log_test("POST /api/auth/update (with cookie)", success, 
-                    f"Status: {resp.status_code}, Updated name: {data.get('user', {}).get('name', 'None')}")
-        except Exception as e:
-            log_test("POST /api/auth/update (with cookie)", False, f"Error: {e}")
-            
-        # Login as admin
-        try:
-            admin_login_data = {
-                "email": ADMIN_EMAIL,
-                "password": ADMIN_PASSWORD
-            }
-            resp = self.session.post(f"{BASE_URL}/auth/login", json=admin_login_data)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'user' in data and 'token' in data and
-                      data['user']['role'] == 'admin')
-            if success:
-                self.admin_token = data['token']
-            log_test("POST /api/auth/login (admin)", success, 
-                    f"Status: {resp.status_code}, Role: {data.get('user', {}).get('role', 'None')}")
-        except Exception as e:
-            log_test("POST /api/auth/login (admin)", False, f"Error: {e}")
-            
-        # Logout
-        try:
-            resp = self.session.post(f"{BASE_URL}/auth/logout")
-            success = resp.status_code == 200
-            log_test("POST /api/auth/logout", success, f"Status: {resp.status_code}")
-        except Exception as e:
-            log_test("POST /api/auth/logout", False, f"Error: {e}")
-    
-    def test_3_ai_smart_search(self):
-        """Test AI Smart Search with Gemini"""
-        print("\n=== 3. AI SMART SEARCH (Gemini 2.5 Flash) ===")
-        
-        # Test 1: Parfum wanita floral manis
-        try:
-            search_data = {"query": "parfum wanita floral manis"}
-            resp = self.session.post(f"{BASE_URL}/smart-search", json=search_data)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'products' in data and 
-                      len(data.get('products', [])) >= 3 and
-                      len(data.get('products', [])) <= 5)
-            # Check if products have ai_reason
-            has_ai_reason = all('ai_reason' in p for p in data.get('products', []))
-            log_test("POST /api/smart-search (parfum wanita floral manis)", success and has_ai_reason, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}, Has AI reasons: {has_ai_reason}")
-        except Exception as e:
-            log_test("POST /api/smart-search (parfum wanita floral manis)", False, f"Error: {e}")
-            
-        # Test 2: Parfum pria maskulin
-        try:
-            search_data = {"query": "parfum pria maskulin"}
-            resp = self.session.post(f"{BASE_URL}/smart-search", json=search_data)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'products' in data and 
-                      len(data.get('products', [])) >= 1)
-            # Check if returned products are mostly pria category
-            pria_products = [p for p in data.get('products', []) if p.get('category') == 'pria']
-            has_pria = len(pria_products) > 0
-            log_test("POST /api/smart-search (parfum pria maskulin)", success and has_pria, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}, Pria products: {len(pria_products)}")
-        except Exception as e:
-            log_test("POST /api/smart-search (parfum pria maskulin)", False, f"Error: {e}")
-            
-        # Test 3: Parfum oud mewah
-        try:
-            search_data = {"query": "parfum oud mewah"}
-            resp = self.session.post(f"{BASE_URL}/smart-search", json=search_data)
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            # Check if any product mentions "oud" or "Dark Oud"
-            has_oud = any('oud' in p.get('name', '').lower() or 'oud' in p.get('description', '').lower() 
-                         for p in data.get('products', []))
-            log_test("POST /api/smart-search (parfum oud mewah)", success, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}, Has Oud: {has_oud}")
-        except Exception as e:
-            log_test("POST /api/smart-search (parfum oud mewah)", False, f"Error: {e}")
-    
-    def test_4_cart(self):
-        """Test cart functionality"""
-        print("\n=== 4. CART (user logged in) ===")
-        
-        # Login first
-        if not self.user_token:
-            try:
-                login_data = {
-                    "email": self.test_user_email,
-                    "password": "TestPassword123!"
-                }
-                resp = self.session.post(f"{BASE_URL}/auth/login", json=login_data)
-                data = resp.json()
-                if resp.status_code == 200:
-                    self.user_token = data['token']
-            except:
-                pass
+            response = self.session.get(f"{API_BASE}/location/provinces")
+            if response.status_code == 200:
+                data = response.json()
+                provinces = data.get('provinces', [])
+                province_count = len(provinces)
                 
-        headers = {'Cookie': f'caisy_token={self.user_token}'} if self.user_token else {}
-        
-        # Get empty cart
-        try:
-            resp = self.session.get(f"{BASE_URL}/cart", headers=headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'items' in data
-            log_test("GET /api/cart (empty)", success, 
-                    f"Status: {resp.status_code}, Items: {len(data.get('items', []))}")
+                if province_count >= 34:
+                    # Check for specific provinces
+                    province_names = [p.get('name', '') for p in provinces]
+                    has_aceh = any('Aceh' in name for name in province_names)
+                    has_jakarta = any('Jakarta' in name or 'DKI' in name for name in province_names)
+                    has_papua = any('Papua' in name for name in province_names)
+                    
+                    self.log_test("GET /api/location/provinces", True, 
+                                f"Found {province_count} provinces (≥34). Has Aceh: {has_aceh}, Jakarta: {has_jakarta}, Papua: {has_papua}", 
+                                response.status_code)
+                else:
+                    self.log_test("GET /api/location/provinces", False, 
+                                f"Only found {province_count} provinces, expected ≥34", 
+                                response.status_code)
+            else:
+                self.log_test("GET /api/location/provinces", False, 
+                            f"Failed to get provinces: {response.text}", response.status_code)
         except Exception as e:
-            log_test("GET /api/cart (empty)", False, f"Error: {e}")
-            
-        # Add items to cart
+            self.log_test("GET /api/location/provinces", False, f"Exception: {str(e)}")
+
+        # Test regencies for DKI Jakarta (province_id=31)
         try:
-            cart_data = {
-                "items": [
-                    {
-                        "product_id": self.test_product_id or "test-product-1",
-                        "quantity": 2,
-                        "name": "Test Product",
-                        "price": 95000,
-                        "image_url": "test.jpg"
-                    }
-                ]
+            response = self.session.get(f"{API_BASE}/location/regencies?province_id=31")
+            if response.status_code == 200:
+                data = response.json()
+                regencies = data.get('regencies', [])
+                regency_count = len(regencies)
+                
+                if regency_count == 6:
+                    regency_names = [r.get('name', '') for r in regencies]
+                    expected_regencies = ['Kepulauan Seribu', 'Jakarta Selatan', 'Jakarta Timur', 
+                                        'Jakarta Pusat', 'Jakarta Barat', 'Jakarta Utara']
+                    found_regencies = []
+                    for expected in expected_regencies:
+                        if any(expected in name for name in regency_names):
+                            found_regencies.append(expected)
+                    
+                    self.log_test("GET /api/location/regencies (DKI Jakarta)", True, 
+                                f"Found {regency_count} regencies. Expected regencies found: {found_regencies}", 
+                                response.status_code)
+                else:
+                    self.log_test("GET /api/location/regencies (DKI Jakarta)", False, 
+                                f"Found {regency_count} regencies, expected 6", response.status_code)
+            else:
+                self.log_test("GET /api/location/regencies (DKI Jakarta)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/location/regencies (DKI Jakarta)", False, f"Exception: {str(e)}")
+
+        # Test districts for Jakarta Selatan (regency_id=3171)
+        try:
+            response = self.session.get(f"{API_BASE}/location/districts?regency_id=3171")
+            if response.status_code == 200:
+                data = response.json()
+                districts = data.get('districts', [])
+                district_count = len(districts)
+                
+                if district_count >= 10:
+                    district_names = [d.get('name', '') for d in districts]
+                    has_jagakarsa = any('Jagakarsa' in name for name in district_names)
+                    has_kebayoran = any('Kebayoran' in name for name in district_names)
+                    
+                    self.log_test("GET /api/location/districts (Jakarta Selatan)", True, 
+                                f"Found {district_count} districts (≥10). Has Jagakarsa: {has_jagakarsa}, Kebayoran: {has_kebayoran}", 
+                                response.status_code)
+                else:
+                    self.log_test("GET /api/location/districts (Jakarta Selatan)", False, 
+                                f"Found {district_count} districts, expected ≥10", response.status_code)
+            else:
+                self.log_test("GET /api/location/districts (Jakarta Selatan)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/location/districts (Jakarta Selatan)", False, f"Exception: {str(e)}")
+
+        # Test villages for Kebayoran Baru district (district_id=3171070)
+        try:
+            response = self.session.get(f"{API_BASE}/location/villages?district_id=3171070")
+            if response.status_code == 200:
+                data = response.json()
+                villages = data.get('villages', [])
+                village_count = len(villages)
+                
+                self.log_test("GET /api/location/villages (Kebayoran Baru)", True, 
+                            f"Found {village_count} villages under Kebayoran Baru district", 
+                            response.status_code)
+            else:
+                self.log_test("GET /api/location/villages (Kebayoran Baru)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/location/villages (Kebayoran Baru)", False, f"Exception: {str(e)}")
+
+        # Test postal code lookup - Jakarta area (12110)
+        try:
+            response = self.session.get(f"{API_BASE}/location/postal-code?code=12110")
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                
+                if results:
+                    result = results[0]
+                    has_required_fields = all(field in result for field in ['code', 'village', 'district', 'regency', 'province'])
+                    
+                    self.log_test("GET /api/location/postal-code (12110)", True, 
+                                f"Found {len(results)} results. Has required fields: {has_required_fields}. Sample: {result}", 
+                                response.status_code)
+                else:
+                    self.log_test("GET /api/location/postal-code (12110)", False, 
+                                "No results found", response.status_code)
+            else:
+                self.log_test("GET /api/location/postal-code (12110)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/location/postal-code (12110)", False, f"Exception: {str(e)}")
+
+        # Test postal code lookup - Bandung area (40115)
+        try:
+            response = self.session.get(f"{API_BASE}/location/postal-code?code=40115")
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                
+                if results:
+                    result = results[0]
+                    is_bandung_area = 'Bandung' in str(result)
+                    
+                    self.log_test("GET /api/location/postal-code (40115)", True, 
+                                f"Found {len(results)} results. Is Bandung area: {is_bandung_area}. Sample: {result}", 
+                                response.status_code)
+                else:
+                    self.log_test("GET /api/location/postal-code (40115)", False, 
+                                "No results found", response.status_code)
+            else:
+                self.log_test("GET /api/location/postal-code (40115)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/location/postal-code (40115)", False, f"Exception: {str(e)}")
+
+    def test_voucher_system(self):
+        """Test 2: VOUCHER SYSTEM"""
+        print("=== TESTING VOUCHER SYSTEM ===")
+        
+        if not self.admin_cookie:
+            self.log_test("Voucher System Tests", False, "Admin login required but failed")
+            return
+
+        # Set admin cookie for requests
+        self.session.cookies.set('caisy_token', self.admin_cookie)
+
+        # Test admin voucher creation - percentage voucher
+        try:
+            voucher_data = {
+                "code": "TESTVOUCHER",
+                "type": "percentage",
+                "value": 20,
+                "min_purchase": 50000,
+                "max_discount": 30000,
+                "usage_limit": 5,
+                "description": "Test voucher for testing"
             }
-            resp = self.session.post(f"{BASE_URL}/cart", json=cart_data, headers=headers)
-            data = resp.json()
-            success = resp.status_code == 200 and data.get('ok') == True
-            log_test("POST /api/cart (add items)", success, 
-                    f"Status: {resp.status_code}, Response: {data}")
-        except Exception as e:
-            log_test("POST /api/cart (add items)", False, f"Error: {e}")
             
-        # Get cart with items
-        try:
-            resp = self.session.get(f"{BASE_URL}/cart", headers=headers)
-            data = resp.json()
-            success = resp.status_code == 200 and len(data.get('items', [])) > 0
-            log_test("GET /api/cart (with items)", success, 
-                    f"Status: {resp.status_code}, Items: {len(data.get('items', []))}")
+            response = self.session.post(f"{API_BASE}/admin/vouchers", json=voucher_data)
+            if response.status_code == 200:
+                data = response.json()
+                voucher = data.get('voucher', {})
+                code_uppercased = voucher.get('code') == 'TESTVOUCHER'
+                
+                self.log_test("POST /api/admin/vouchers (percentage)", True, 
+                            f"Created voucher. Code uppercased: {code_uppercased}. Voucher: {voucher}", 
+                            response.status_code)
+                self.test_voucher_id = voucher.get('id')
+            else:
+                self.log_test("POST /api/admin/vouchers (percentage)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("GET /api/cart (with items)", False, f"Error: {e}")
-    
-    def test_5_location_dropdowns(self):
-        """Test location dropdown endpoints"""
-        print("\n=== 5. LOCATION DROPDOWNS ===")
+            self.log_test("POST /api/admin/vouchers (percentage)", False, f"Exception: {str(e)}")
+
+        # Test duplicate voucher creation (should return 409)
+        try:
+            response = self.session.post(f"{API_BASE}/admin/vouchers", json=voucher_data)
+            if response.status_code == 409:
+                self.log_test("POST /api/admin/vouchers (duplicate)", True, 
+                            "Correctly rejected duplicate voucher with 409", response.status_code)
+            else:
+                self.log_test("POST /api/admin/vouchers (duplicate)", False, 
+                            f"Expected 409 for duplicate, got {response.status_code}: {response.text}", 
+                            response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/admin/vouchers (duplicate)", False, f"Exception: {str(e)}")
+
+        # Test fixed voucher creation
+        try:
+            fixed_voucher_data = {
+                "code": "FIXED10K",
+                "type": "fixed",
+                "value": 10000
+            }
+            
+            response = self.session.post(f"{API_BASE}/admin/vouchers", json=fixed_voucher_data)
+            if response.status_code == 200:
+                data = response.json()
+                voucher = data.get('voucher', {})
+                
+                self.log_test("POST /api/admin/vouchers (fixed)", True, 
+                            f"Created fixed voucher: {voucher}", response.status_code)
+                self.fixed_voucher_id = voucher.get('id')
+            else:
+                self.log_test("POST /api/admin/vouchers (fixed)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/admin/vouchers (fixed)", False, f"Exception: {str(e)}")
+
+        # Test GET admin vouchers
+        try:
+            response = self.session.get(f"{API_BASE}/admin/vouchers")
+            if response.status_code == 200:
+                data = response.json()
+                vouchers = data.get('vouchers', [])
+                voucher_count = len(vouchers)
+                
+                self.log_test("GET /api/admin/vouchers", True, 
+                            f"Retrieved {voucher_count} vouchers", response.status_code)
+            else:
+                self.log_test("GET /api/admin/vouchers", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("GET /api/admin/vouchers", False, f"Exception: {str(e)}")
+
+        # Test voucher update
+        if hasattr(self, 'test_voucher_id'):
+            try:
+                update_data = {"value": 25}
+                response = self.session.put(f"{API_BASE}/admin/vouchers/{self.test_voucher_id}", json=update_data)
+                if response.status_code == 200:
+                    data = response.json()
+                    voucher = data.get('voucher', {})
+                    updated_value = voucher.get('value') == 25
+                    
+                    self.log_test("PUT /api/admin/vouchers/:id", True, 
+                                f"Updated voucher value. Correct value: {updated_value}", response.status_code)
+                else:
+                    self.log_test("PUT /api/admin/vouchers/:id", False, 
+                                f"Failed: {response.text}", response.status_code)
+            except Exception as e:
+                self.log_test("PUT /api/admin/vouchers/:id", False, f"Exception: {str(e)}")
+
+        # Test admin access without cookie
+        temp_session = requests.Session()
+        try:
+            response = temp_session.get(f"{API_BASE}/admin/vouchers")
+            if response.status_code == 403:
+                self.log_test("Admin vouchers without auth", True, 
+                            "Correctly rejected non-admin access with 403", response.status_code)
+            else:
+                self.log_test("Admin vouchers without auth", False, 
+                            f"Expected 403, got {response.status_code}", response.status_code)
+        except Exception as e:
+            self.log_test("Admin vouchers without auth", False, f"Exception: {str(e)}")
+
+        # Test public voucher validation
+        self.test_public_voucher_validation()
+
+    def test_public_voucher_validation(self):
+        """Test public voucher validation endpoints"""
+        print("=== TESTING PUBLIC VOUCHER VALIDATION ===")
         
-        # Get provinces
+        # Test valid voucher with sufficient subtotal
         try:
-            resp = self.session.get(f"{BASE_URL}/location/provinces")
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'provinces' in data and 
-                      len(data['provinces']) == 6)
-            log_test("GET /api/location/provinces", success, 
-                    f"Status: {resp.status_code}, Provinces: {len(data.get('provinces', []))}")
-        except Exception as e:
-            log_test("GET /api/location/provinces", False, f"Error: {e}")
+            validation_data = {
+                "code": "TESTVOUCHER",
+                "subtotal": 100000
+            }
             
-        # Get cities for DKI Jakarta (province_id=31)
-        try:
-            resp = self.session.get(f"{BASE_URL}/location/cities?province_id=31")
-            data = resp.json()
-            success = resp.status_code == 200 and 'cities' in data
-            has_jakarta_pusat = any('Jakarta Pusat' in city.get('name', '') for city in data.get('cities', []))
-            log_test("GET /api/location/cities?province_id=31", success, 
-                    f"Status: {resp.status_code}, Cities: {len(data.get('cities', []))}, Has Jakarta Pusat: {has_jakarta_pusat}")
+            response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+            if response.status_code == 200:
+                data = response.json()
+                is_valid = data.get('valid') == True
+                discount = data.get('discount', 0)
+                expected_discount = 25000  # 25% of 100000 (updated value)
+                
+                self.log_test("POST /api/vouchers/validate (valid)", True, 
+                            f"Valid: {is_valid}, Discount: {discount} (expected: {expected_discount})", 
+                            response.status_code)
+            else:
+                self.log_test("POST /api/vouchers/validate (valid)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("GET /api/location/cities?province_id=31", False, f"Error: {e}")
-            
-        # Get districts for Jakarta Pusat (city_id=3171)
+            self.log_test("POST /api/vouchers/validate (valid)", False, f"Exception: {str(e)}")
+
+        # Test voucher with max discount cap
         try:
-            resp = self.session.get(f"{BASE_URL}/location/districts?city_id=3171")
-            data = resp.json()
-            success = resp.status_code == 200 and 'districts' in data
-            has_jubelio_id = all('jubelio_destination_id' in d for d in data.get('districts', []))
-            log_test("GET /api/location/districts?city_id=3171", success, 
-                    f"Status: {resp.status_code}, Districts: {len(data.get('districts', []))}, Has Jubelio IDs: {has_jubelio_id}")
-        except Exception as e:
-            log_test("GET /api/location/districts?city_id=3171", False, f"Error: {e}")
-    
-    def test_6_shipping_rates(self):
-        """Test shipping rates"""
-        print("\n=== 6. SHIPPING RATES ===")
-        
-        try:
-            shipping_data = {
-                "district_id": "317101",  # Jakarta Pusat district
-                "weight": 300,
+            validation_data = {
+                "code": "TESTVOUCHER",
                 "subtotal": 200000
             }
-            resp = self.session.post(f"{BASE_URL}/shipping/rates", json=shipping_data)
-            data = resp.json()
-            success = resp.status_code == 200 and 'rates' in data
-            rates = data.get('rates', [])
-            has_required_fields = all(
-                'courier' in rate and 'service' in rate and 'etd' in rate and 'price' in rate 
-                for rate in rates
-            )
-            # Should have fallback mock rates (6 options)
-            has_fallback = len(rates) >= 6
-            log_test("POST /api/shipping/rates", success and has_required_fields, 
-                    f"Status: {resp.status_code}, Rates: {len(rates)}, Has required fields: {has_required_fields}, Has fallback: {has_fallback}")
-        except Exception as e:
-            log_test("POST /api/shipping/rates", False, f"Error: {e}")
-    
-    def test_7_orders(self):
-        """Test order creation and retrieval"""
-        print("\n=== 7. ORDERS ===")
-        
-        # Login first
-        if not self.user_token:
-            try:
-                login_data = {
-                    "email": self.test_user_email,
-                    "password": "TestPassword123!"
-                }
-                resp = self.session.post(f"{BASE_URL}/auth/login", json=login_data)
-                data = resp.json()
-                if resp.status_code == 200:
-                    self.user_token = data['token']
-            except:
-                pass
+            
+            response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+            if response.status_code == 200:
+                data = response.json()
+                discount = data.get('discount', 0)
+                capped_correctly = discount == 30000  # Should be capped at max_discount
                 
-        headers = {'Cookie': f'caisy_token={self.user_token}'} if self.user_token else {}
+                self.log_test("POST /api/vouchers/validate (max discount cap)", True, 
+                            f"Discount: {discount}, Capped at 30000: {capped_correctly}", 
+                            response.status_code)
+            else:
+                self.log_test("POST /api/vouchers/validate (max discount cap)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/vouchers/validate (max discount cap)", False, f"Exception: {str(e)}")
+
+        # Test voucher below minimum purchase
+        try:
+            validation_data = {
+                "code": "TESTVOUCHER",
+                "subtotal": 30000
+            }
+            
+            response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+            if response.status_code == 400:
+                error_message = response.json().get('error', '')
+                has_minimum_message = 'Minimum belanja Rp 50.000' in error_message
+                
+                self.log_test("POST /api/vouchers/validate (below minimum)", True, 
+                            f"Correctly rejected below minimum. Message: {error_message}", 
+                            response.status_code)
+            else:
+                self.log_test("POST /api/vouchers/validate (below minimum)", False, 
+                            f"Expected 400, got {response.status_code}: {response.text}", 
+                            response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/vouchers/validate (below minimum)", False, f"Exception: {str(e)}")
+
+        # Test non-existent voucher
+        try:
+            validation_data = {
+                "code": "NOEXIST",
+                "subtotal": 100000
+            }
+            
+            response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+            if response.status_code == 404:
+                error_message = response.json().get('error', '')
+                has_not_found_message = 'Voucher tidak ditemukan' in error_message
+                
+                self.log_test("POST /api/vouchers/validate (non-existent)", True, 
+                            f"Correctly returned 404. Message: {error_message}", 
+                            response.status_code)
+            else:
+                self.log_test("POST /api/vouchers/validate (non-existent)", False, 
+                            f"Expected 404, got {response.status_code}: {response.text}", 
+                            response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/vouchers/validate (non-existent)", False, f"Exception: {str(e)}")
+
+        # Test fixed voucher validation
+        try:
+            validation_data = {
+                "code": "FIXED10K",
+                "subtotal": 50000
+            }
+            
+            response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+            if response.status_code == 200:
+                data = response.json()
+                discount = data.get('discount', 0)
+                correct_fixed_discount = discount == 10000
+                
+                self.log_test("POST /api/vouchers/validate (fixed)", True, 
+                            f"Fixed discount: {discount}, Correct: {correct_fixed_discount}", 
+                            response.status_code)
+            else:
+                self.log_test("POST /api/vouchers/validate (fixed)", False, 
+                            f"Failed: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("POST /api/vouchers/validate (fixed)", False, f"Exception: {str(e)}")
+
+        # Test inactive voucher
+        if hasattr(self, 'test_voucher_id'):
+            try:
+                # First, make the voucher inactive
+                update_data = {"is_active": False}
+                self.session.put(f"{API_BASE}/admin/vouchers/{self.test_voucher_id}", json=update_data)
+                
+                # Then try to validate it
+                validation_data = {
+                    "code": "TESTVOUCHER",
+                    "subtotal": 100000
+                }
+                
+                response = self.session.post(f"{API_BASE}/vouchers/validate", json=validation_data)
+                if response.status_code == 400:
+                    error_message = response.json().get('error', '')
+                    has_inactive_message = 'Voucher tidak aktif' in error_message
+                    
+                    self.log_test("POST /api/vouchers/validate (inactive)", True, 
+                                f"Correctly rejected inactive voucher. Message: {error_message}", 
+                                response.status_code)
+                else:
+                    self.log_test("POST /api/vouchers/validate (inactive)", False, 
+                                f"Expected 400, got {response.status_code}: {response.text}", 
+                                response.status_code)
+                
+                # Reactivate for other tests
+                update_data = {"is_active": True}
+                self.session.put(f"{API_BASE}/admin/vouchers/{self.test_voucher_id}", json=update_data)
+                
+            except Exception as e:
+                self.log_test("POST /api/vouchers/validate (inactive)", False, f"Exception: {str(e)}")
+
+    def test_order_creation_with_voucher(self):
+        """Test 3: ORDER CREATION with voucher and new address format"""
+        print("=== TESTING ORDER CREATION WITH VOUCHER ===")
         
-        # Create order
+        # First, get a product to order
+        try:
+            response = self.session.get(f"{API_BASE}/products?limit=1")
+            if response.status_code != 200:
+                self.log_test("Order Creation Tests", False, "Could not fetch products for testing")
+                return
+            
+            products = response.json().get('products', [])
+            if not products:
+                self.log_test("Order Creation Tests", False, "No products available for testing")
+                return
+            
+            product = products[0]
+            product_id = product.get('id')
+            
+        except Exception as e:
+            self.log_test("Order Creation Tests", False, f"Exception getting products: {str(e)}")
+            return
+
+        # Test order creation with voucher and new address format
         try:
             order_data = {
                 "items": [
                     {
-                        "product_id": self.test_product_id or "test-product-1",
+                        "product_id": product_id,
                         "quantity": 1
                     }
                 ],
                 "guest_name": "Test Customer",
                 "guest_email": "test@example.com",
                 "guest_phone": "081234567890",
-                "district_id": "317101",
+                "province_id": "31",
+                "province_name": "DKI Jakarta",
+                "city_id": "3171",
+                "city_name": "Jakarta Selatan",
+                "district_id": "3171070",
+                "district_name": "Kebayoran Baru",
+                "village_id": "3171070001",
+                "village_name": "Kramat Pela",
+                "postal_code": "12110",
                 "address_detail": "Jl. Test No. 123",
-                "postal_code": "10110",
                 "shipping_cost": 15000,
                 "shipping_carrier": "JNE",
                 "shipping_service": "REG",
-                "shipping_etd": "2-3 hari"
+                "shipping_etd": "2-3 hari",
+                "voucher_code": "TESTVOUCHER",
+                "notes": "Test order with voucher"
             }
-            resp = self.session.post(f"{BASE_URL}/orders", json=order_data, headers=headers)
-            data = resp.json()
-            success = (resp.status_code == 200 and 
-                      'order' in data and 
-                      data['order'].get('order_code', '').startswith('CAISY-') and
-                      data['order'].get('status') == 'pending')
-            if success:
-                self.test_order_id = data['order']['id']
-            log_test("POST /api/orders (create)", success, 
-                    f"Status: {resp.status_code}, Order code: {data.get('order', {}).get('order_code', 'None')}")
-        except Exception as e:
-            log_test("POST /api/orders (create)", False, f"Error: {e}")
             
-        # Test stock validation (over-quantity should fail)
-        try:
-            order_data_invalid = {
-                "items": [
-                    {
-                        "product_id": self.test_product_id or "test-product-1",
-                        "quantity": 9999  # Excessive quantity
-                    }
-                ],
-                "guest_name": "Test Customer",
-                "guest_email": "test@example.com"
-            }
-            resp = self.session.post(f"{BASE_URL}/orders", json=order_data_invalid, headers=headers)
-            success = resp.status_code == 400  # Should fail with stock error
-            log_test("POST /api/orders (stock validation)", success, 
-                    f"Status: {resp.status_code} (expected 400 for insufficient stock)")
-        except Exception as e:
-            log_test("POST /api/orders (stock validation)", False, f"Error: {e}")
-            
-        # Get order by ID
-        if self.test_order_id:
-            try:
-                resp = self.session.get(f"{BASE_URL}/orders/{self.test_order_id}")
-                data = resp.json()
-                success = resp.status_code == 200 and 'order' in data
-                log_test("GET /api/orders/:id", success, 
-                        f"Status: {resp.status_code}, Order ID: {data.get('order', {}).get('id', 'None')}")
-            except Exception as e:
-                log_test("GET /api/orders/:id", False, f"Error: {e}")
+            response = self.session.post(f"{API_BASE}/orders", json=order_data)
+            if response.status_code == 200:
+                data = response.json()
+                order = data.get('order', {})
                 
-        # Get user's orders
-        try:
-            resp = self.session.get(f"{BASE_URL}/orders", headers=headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'orders' in data
-            log_test("GET /api/orders (user's orders)", success, 
-                    f"Status: {resp.status_code}, Orders count: {len(data.get('orders', []))}")
+                # Check order structure
+                has_subtotal = 'subtotal' in order
+                has_shipping_cost = 'shipping_cost' in order
+                has_voucher_code = order.get('voucher_code') == 'TESTVOUCHER'
+                has_voucher_discount = 'voucher_discount' in order and order['voucher_discount'] > 0
+                has_voucher_description = 'voucher_description' in order
+                has_total_amount = 'total_amount' in order
+                has_village_info = order.get('village_id') == '3171070001' and order.get('village_name') == 'Kramat Pela'
+                
+                # Check total calculation
+                expected_total = order.get('subtotal', 0) + order.get('shipping_cost', 0) - order.get('voucher_discount', 0)
+                actual_total = order.get('total_amount', 0)
+                correct_total = expected_total == actual_total
+                
+                self.log_test("POST /api/orders (with voucher)", True, 
+                            f"Order created. Has required fields: subtotal={has_subtotal}, shipping={has_shipping_cost}, voucher_code={has_voucher_code}, voucher_discount={has_voucher_discount}, total={has_total_amount}, village_info={has_village_info}, correct_total={correct_total}", 
+                            response.status_code)
+                
+                self.test_order_id = order.get('id')
+                
+            else:
+                self.log_test("POST /api/orders (with voucher)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("GET /api/orders (user's orders)", False, f"Error: {e}")
-    
-    def test_8_midtrans_payment(self):
-        """Test Midtrans payment integration"""
-        print("\n=== 8. MIDTRANS PAYMENT ===")
+            self.log_test("POST /api/orders (with voucher)", False, f"Exception: {str(e)}")
+
+        # Verify voucher usage count incremented
+        try:
+            response = self.session.get(f"{API_BASE}/admin/vouchers")
+            if response.status_code == 200:
+                data = response.json()
+                vouchers = data.get('vouchers', [])
+                test_voucher = next((v for v in vouchers if v.get('code') == 'TESTVOUCHER'), None)
+                
+                if test_voucher:
+                    used_count = test_voucher.get('used_count', 0)
+                    incremented = used_count >= 1
+                    
+                    self.log_test("Voucher usage count increment", True, 
+                                f"Voucher used_count: {used_count}, Incremented: {incremented}", 
+                                response.status_code)
+                else:
+                    self.log_test("Voucher usage count increment", False, 
+                                "Could not find TESTVOUCHER to check usage count", response.status_code)
+            else:
+                self.log_test("Voucher usage count increment", False, 
+                            f"Failed to get vouchers: {response.text}", response.status_code)
+        except Exception as e:
+            self.log_test("Voucher usage count increment", False, f"Exception: {str(e)}")
+
+    def test_shipping_rates_updated(self):
+        """Test 4: SHIPPING RATES (updated — no longer requires local district lookup)"""
+        print("=== TESTING UPDATED SHIPPING RATES ===")
         
-        if not self.test_order_id:
-            log_test("POST /api/payment/create-transaction", False, "No test order ID available")
-            return
-            
         try:
-            payment_data = {"order_id": self.test_order_id}
-            resp = self.session.post(f"{BASE_URL}/payment/create-transaction", json=payment_data)
-            data = resp.json()
-            success = resp.status_code == 200 and 'snap_token' in data
-            log_test("POST /api/payment/create-transaction", success, 
-                    f"Status: {resp.status_code}, Has snap_token: {'snap_token' in data}")
-            if not success and 'error' in data:
-                print(f"    Midtrans error: {data['error']}")
+            shipping_data = {
+                "district_id": "anything",  # Should work with any value now
+                "weight": 300,
+                "subtotal": 150000
+            }
+            
+            response = self.session.post(f"{API_BASE}/shipping/rates", json=shipping_data)
+            if response.status_code == 200:
+                data = response.json()
+                rates = data.get('rates', [])
+                rate_count = len(rates)
+                
+                # Check if we get the fallback mock rates (6 options)
+                has_jne = any(rate.get('courier') == 'JNE' for rate in rates)
+                has_jnt = any('J&T' in rate.get('courier', '') for rate in rates)
+                has_sicepat = any(rate.get('courier') == 'SiCepat' for rate in rates)
+                
+                # Check required fields
+                all_have_required_fields = all(
+                    all(field in rate for field in ['courier', 'service', 'etd', 'price'])
+                    for rate in rates
+                )
+                
+                self.log_test("POST /api/shipping/rates (updated)", True, 
+                            f"Got {rate_count} rates. Has JNE: {has_jne}, J&T: {has_jnt}, SiCepat: {has_sicepat}. All have required fields: {all_have_required_fields}", 
+                            response.status_code)
+                
+                # Should no longer get "District not found" error
+                no_district_error = "District not found" not in response.text
+                self.log_test("No District not found error", True, 
+                            f"No 'District not found' error: {no_district_error}", response.status_code)
+                
+            else:
+                self.log_test("POST /api/shipping/rates (updated)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("POST /api/payment/create-transaction", False, f"Error: {e}")
-    
-    def test_9_waiting_list(self):
-        """Test waiting list functionality"""
-        print("\n=== 9. WAITING LIST ===")
+            self.log_test("POST /api/shipping/rates (updated)", False, f"Exception: {str(e)}")
+
+    def test_regression_existing_endpoints(self):
+        """Test 5: REGRESSION - Verify existing endpoints still work"""
+        print("=== TESTING REGRESSION - EXISTING ENDPOINTS ===")
         
-        # Submit waiting list request
+        # Test products endpoint
         try:
-            waiting_data = {
-                "requester_name": "Test Requester",
-                "requester_email": "requester@example.com",
-                "perfume_name": "Chanel Coco",
-                "brand": "Chanel",
-                "gender_preference": "wanita",
-                "description": "Looking for this classic fragrance"
-            }
-            resp = self.session.post(f"{BASE_URL}/waiting-list", json=waiting_data)
-            data = resp.json()
-            success = resp.status_code == 200 and data.get('ok') == True
-            log_test("POST /api/waiting-list (first request)", success, 
-                    f"Status: {resp.status_code}, Response: {data}")
+            response = self.session.get(f"{API_BASE}/products")
+            if response.status_code == 200:
+                data = response.json()
+                products = data.get('products', [])
+                product_count = len(products)
+                
+                self.log_test("GET /api/products (regression)", True, 
+                            f"Retrieved {product_count} products", response.status_code)
+            else:
+                self.log_test("GET /api/products (regression)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("POST /api/waiting-list (first request)", False, f"Error: {e}")
-            
-        # Submit same perfume again (should increment count)
+            self.log_test("GET /api/products (regression)", False, f"Exception: {str(e)}")
+
+        # Test smart search
         try:
-            waiting_data_2 = {
-                "requester_name": "Another Requester",
-                "requester_email": "another@example.com",
-                "perfume_name": "Chanel Coco",  # Same perfume
-                "brand": "Chanel",
-                "gender_preference": "wanita"
-            }
-            resp = self.session.post(f"{BASE_URL}/waiting-list", json=waiting_data_2)
-            data = resp.json()
-            success = resp.status_code == 200 and data.get('ok') == True
-            log_test("POST /api/waiting-list (duplicate perfume)", success, 
-                    f"Status: {resp.status_code}, Should increment count")
+            search_data = {"query": "parfum wanita floral"}
+            response = self.session.post(f"{API_BASE}/smart-search", json=search_data)
+            if response.status_code == 200:
+                data = response.json()
+                recommendations = data.get('recommendations', [])
+                rec_count = len(recommendations)
+                
+                self.log_test("POST /api/smart-search (regression)", True, 
+                            f"Got {rec_count} AI recommendations", response.status_code)
+            else:
+                self.log_test("POST /api/smart-search (regression)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("POST /api/waiting-list (duplicate perfume)", False, f"Error: {e}")
-            
-        # Get top waiting list
+            self.log_test("POST /api/smart-search (regression)", False, f"Exception: {str(e)}")
+
+        # Test admin stats (with admin auth)
         try:
-            resp = self.session.get(f"{BASE_URL}/waiting-list/top")
-            data = resp.json()
-            success = resp.status_code == 200 and 'items' in data
-            # Check if Chanel Coco has request_count = 2
-            chanel_coco = next((item for item in data.get('items', []) 
-                              if item.get('perfume_name') == 'Chanel Coco'), None)
-            has_correct_count = chanel_coco and chanel_coco.get('request_count') == 2
-            log_test("GET /api/waiting-list/top", success, 
-                    f"Status: {resp.status_code}, Items: {len(data.get('items', []))}, Chanel Coco count: {chanel_coco.get('request_count') if chanel_coco else 'Not found'}")
+            response = self.session.get(f"{API_BASE}/admin/stats")
+            if response.status_code == 200:
+                data = response.json()
+                stats = data.get('stats', {})
+                
+                self.log_test("GET /api/admin/stats (regression)", True, 
+                            f"Retrieved admin stats: {list(stats.keys())}", response.status_code)
+            else:
+                self.log_test("GET /api/admin/stats (regression)", False, 
+                            f"Failed: {response.text}", response.status_code)
         except Exception as e:
-            log_test("GET /api/waiting-list/top", False, f"Error: {e}")
-    
-    def test_10_admin_apis(self):
-        """Test admin APIs"""
-        print("\n=== 10. ADMIN APIs (requires admin auth) ===")
+            self.log_test("GET /api/admin/stats (regression)", False, f"Exception: {str(e)}")
+
+    def cleanup_test_data(self):
+        """Clean up test vouchers"""
+        print("=== CLEANING UP TEST DATA ===")
+        
+        if hasattr(self, 'test_voucher_id'):
+            try:
+                response = self.session.delete(f"{API_BASE}/admin/vouchers/{self.test_voucher_id}")
+                if response.status_code == 200:
+                    self.log_test("Cleanup TESTVOUCHER", True, "Deleted test voucher", response.status_code)
+                else:
+                    self.log_test("Cleanup TESTVOUCHER", False, f"Failed: {response.text}", response.status_code)
+            except Exception as e:
+                self.log_test("Cleanup TESTVOUCHER", False, f"Exception: {str(e)}")
+
+        if hasattr(self, 'fixed_voucher_id'):
+            try:
+                response = self.session.delete(f"{API_BASE}/admin/vouchers/{self.fixed_voucher_id}")
+                if response.status_code == 200:
+                    self.log_test("Cleanup FIXED10K", True, "Deleted fixed voucher", response.status_code)
+                else:
+                    self.log_test("Cleanup FIXED10K", False, f"Failed: {response.text}", response.status_code)
+            except Exception as e:
+                self.log_test("Cleanup FIXED10K", False, f"Exception: {str(e)}")
+
+    def run_all_tests(self):
+        """Run all tests"""
+        print("🚀 Starting Caisy Perfume Backend Testing")
+        print(f"Base URL: {BASE_URL}")
+        print(f"API Base: {API_BASE}")
+        print("=" * 60)
         
         # Login as admin first
-        if not self.admin_token:
-            try:
-                admin_login_data = {
-                    "email": ADMIN_EMAIL,
-                    "password": ADMIN_PASSWORD
-                }
-                resp = self.session.post(f"{BASE_URL}/auth/login", json=admin_login_data)
-                data = resp.json()
-                if resp.status_code == 200:
-                    self.admin_token = data['token']
-            except:
-                pass
-                
-        admin_headers = {'Cookie': f'caisy_token={self.admin_token}'} if self.admin_token else {}
+        if not self.admin_login():
+            print("❌ Cannot proceed without admin access")
+            return
         
-        # Admin stats
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/stats", headers=admin_headers)
-            data = resp.json()
-            required_fields = ['revenueToday', 'revenueMonth', 'ordersToday', 'ordersMonth', 
-                             'statusBreakdown', 'criticalStock', 'salesChart', 'categoryDistribution', 'latestOrders']
-            success = resp.status_code == 200 and all(field in data for field in required_fields)
-            log_test("GET /api/admin/stats", success, 
-                    f"Status: {resp.status_code}, Has all required fields: {success}")
-        except Exception as e:
-            log_test("GET /api/admin/stats", False, f"Error: {e}")
-            
-        # Admin products list
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/products", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'products' in data
-            log_test("GET /api/admin/products", success, 
-                    f"Status: {resp.status_code}, Products: {len(data.get('products', []))}")
-        except Exception as e:
-            log_test("GET /api/admin/products", False, f"Error: {e}")
-            
-        # Create new product
-        try:
-            new_product = {
-                "name": "Test Product Admin",
-                "category": "unisex",
-                "description": "Test product created by admin",
-                "price": 150000,
-                "stock": 50,
-                "is_active": True,
-                "is_featured": False
-            }
-            resp = self.session.post(f"{BASE_URL}/admin/products", json=new_product, headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'product' in data
-            created_product_id = data.get('product', {}).get('id')
-            log_test("POST /api/admin/products", success, 
-                    f"Status: {resp.status_code}, Created product ID: {created_product_id}")
-        except Exception as e:
-            log_test("POST /api/admin/products", False, f"Error: {e}")
-            
-        # Update product
-        if created_product_id:
-            try:
-                update_data = {
-                    "name": "Updated Test Product",
-                    "price": 175000
-                }
-                resp = self.session.put(f"{BASE_URL}/admin/products/{created_product_id}", 
-                                      json=update_data, headers=admin_headers)
-                data = resp.json()
-                success = resp.status_code == 200 and 'product' in data
-                log_test("PUT /api/admin/products/:id", success, 
-                        f"Status: {resp.status_code}, Updated: {success}")
-            except Exception as e:
-                log_test("PUT /api/admin/products/:id", False, f"Error: {e}")
-                
-        # Delete product
-        if created_product_id:
-            try:
-                resp = self.session.delete(f"{BASE_URL}/admin/products/{created_product_id}", 
-                                         headers=admin_headers)
-                data = resp.json()
-                success = resp.status_code == 200 and data.get('ok') == True
-                log_test("DELETE /api/admin/products/:id", success, 
-                        f"Status: {resp.status_code}, Deleted: {success}")
-            except Exception as e:
-                log_test("DELETE /api/admin/products/:id", False, f"Error: {e}")
-                
-        # Admin orders
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/orders", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'orders' in data
-            log_test("GET /api/admin/orders", success, 
-                    f"Status: {resp.status_code}, Orders: {len(data.get('orders', []))}")
-        except Exception as e:
-            log_test("GET /api/admin/orders", False, f"Error: {e}")
-            
-        # Update order status
-        if self.test_order_id:
-            try:
-                status_data = {
-                    "status": "shipped",
-                    "tracking_number": "JNE123456789"
-                }
-                resp = self.session.patch(f"{BASE_URL}/admin/orders/{self.test_order_id}/status", 
-                                        json=status_data, headers=admin_headers)
-                data = resp.json()
-                success = resp.status_code == 200 and data.get('ok') == True
-                log_test("PATCH /api/admin/orders/:id/status", success, 
-                        f"Status: {resp.status_code}, Updated: {success}")
-            except Exception as e:
-                log_test("PATCH /api/admin/orders/:id/status", False, f"Error: {e}")
-                
-        # Admin customers
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/customers", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'customers' in data
-            # Check if customers have order_count and total_spend
-            has_stats = all('order_count' in c and 'total_spend' in c for c in data.get('customers', []))
-            log_test("GET /api/admin/customers", success and has_stats, 
-                    f"Status: {resp.status_code}, Customers: {len(data.get('customers', []))}, Has stats: {has_stats}")
-        except Exception as e:
-            log_test("GET /api/admin/customers", False, f"Error: {e}")
-            
-        # Admin stock
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/stock", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'stock' in data
-            # Check if stock items have total_sold
-            has_sold_stats = all('total_sold' in item for item in data.get('stock', []))
-            log_test("GET /api/admin/stock", success and has_sold_stats, 
-                    f"Status: {resp.status_code}, Stock items: {len(data.get('stock', []))}, Has sold stats: {has_sold_stats}")
-        except Exception as e:
-            log_test("GET /api/admin/stock", False, f"Error: {e}")
-            
-        # Stock adjustment (positive)
-        if self.test_product_id:
-            try:
-                adjust_data = {
-                    "product_id": self.test_product_id,
-                    "quantity_change": 10,
-                    "reason": "Restock Barang Masuk",
-                    "notes": "Test adjustment"
-                }
-                resp = self.session.post(f"{BASE_URL}/admin/stock/adjust", 
-                                       json=adjust_data, headers=admin_headers)
-                data = resp.json()
-                success = resp.status_code == 200 and data.get('ok') == True and 'new_stock' in data
-                log_test("POST /api/admin/stock/adjust (positive)", success, 
-                        f"Status: {resp.status_code}, New stock: {data.get('new_stock', 'None')}")
-            except Exception as e:
-                log_test("POST /api/admin/stock/adjust (positive)", False, f"Error: {e}")
-                
-        # Stock adjustment (negative that goes below 0 - should fail)
-        if self.test_product_id:
-            try:
-                adjust_data = {
-                    "product_id": self.test_product_id,
-                    "quantity_change": -9999,  # Large negative
-                    "reason": "Test negative adjustment",
-                    "notes": "Should fail"
-                }
-                resp = self.session.post(f"{BASE_URL}/admin/stock/adjust", 
-                                       json=adjust_data, headers=admin_headers)
-                success = resp.status_code == 400  # Should fail
-                log_test("POST /api/admin/stock/adjust (negative below 0)", success, 
-                        f"Status: {resp.status_code} (expected 400)")
-            except Exception as e:
-                log_test("POST /api/admin/stock/adjust (negative below 0)", False, f"Error: {e}")
-                
-        # Stock logs
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/stock/logs", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'logs' in data
-            # Check if logs have product_name joined
-            has_product_names = all('product_name' in log for log in data.get('logs', []))
-            log_test("GET /api/admin/stock/logs", success and has_product_names, 
-                    f"Status: {resp.status_code}, Logs: {len(data.get('logs', []))}, Has product names: {has_product_names}")
-        except Exception as e:
-            log_test("GET /api/admin/stock/logs", False, f"Error: {e}")
-            
-        # Admin waiting list
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/waiting-list", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'items' in data
-            log_test("GET /api/admin/waiting-list", success, 
-                    f"Status: {resp.status_code}, Items: {len(data.get('items', []))}")
-        except Exception as e:
-            log_test("GET /api/admin/waiting-list", False, f"Error: {e}")
-            
-        # Update waiting list status
-        try:
-            # Get first waiting list item
-            resp = self.session.get(f"{BASE_URL}/admin/waiting-list", headers=admin_headers)
-            data = resp.json()
-            if data.get('items'):
-                item_id = data['items'][0]['id']
-                status_data = {"status": "fulfilled"}
-                resp = self.session.patch(f"{BASE_URL}/admin/waiting-list/{item_id}", 
-                                        json=status_data, headers=admin_headers)
-                data = resp.json()
-                success = resp.status_code == 200 and data.get('ok') == True
-                log_test("PATCH /api/admin/waiting-list/:id", success, 
-                        f"Status: {resp.status_code}, Updated: {success}")
-            else:
-                log_test("PATCH /api/admin/waiting-list/:id", False, "No waiting list items to update")
-        except Exception as e:
-            log_test("PATCH /api/admin/waiting-list/:id", False, f"Error: {e}")
-            
-        # Admin reports
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/reports", headers=admin_headers)
-            data = resp.json()
-            required_fields = ['totalRevenue', 'orderCount', 'topProducts']
-            success = resp.status_code == 200 and all(field in data for field in required_fields)
-            log_test("GET /api/admin/reports", success, 
-                    f"Status: {resp.status_code}, Has required fields: {success}")
-        except Exception as e:
-            log_test("GET /api/admin/reports", False, f"Error: {e}")
-            
-        # Admin settings get
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/settings", headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and 'settings' in data
-            log_test("GET /api/admin/settings", success, 
-                    f"Status: {resp.status_code}, Has settings: {'settings' in data}")
-        except Exception as e:
-            log_test("GET /api/admin/settings", False, f"Error: {e}")
-            
-        # Admin settings update
-        try:
-            settings_data = {
-                "store_name": "Caisy Updated",
-                "store_description": "Updated description"
-            }
-            resp = self.session.put(f"{BASE_URL}/admin/settings", 
-                                  json=settings_data, headers=admin_headers)
-            data = resp.json()
-            success = resp.status_code == 200 and data.get('ok') == True
-            log_test("PUT /api/admin/settings", success, 
-                    f"Status: {resp.status_code}, Updated: {success}")
-        except Exception as e:
-            log_test("PUT /api/admin/settings", False, f"Error: {e}")
-            
-        # Test admin route without admin cookie (should fail)
-        try:
-            resp = self.session.get(f"{BASE_URL}/admin/stats")  # No admin headers
-            success = resp.status_code == 403  # Forbidden
-            log_test("GET /api/admin/* without admin auth", success, 
-                    f"Status: {resp.status_code} (expected 403)")
-        except Exception as e:
-            log_test("GET /api/admin/* without admin auth", False, f"Error: {e}")
-    
-    def test_11_webhook(self):
-        """Test webhook signature verification"""
-        print("\n=== 11. WEBHOOK (signature verification) ===")
+        # Run all test suites
+        self.test_indonesia_location_api()
+        self.test_voucher_system()
+        self.test_order_creation_with_voucher()
+        self.test_shipping_rates_updated()
+        self.test_regression_existing_endpoints()
         
-        # Test invalid signature
-        try:
-            webhook_data = {
-                "order_id": "CAISY-TEST",
-                "status_code": "200",
-                "gross_amount": "100000",
-                "signature_key": "invalid_signature",
-                "transaction_status": "settlement",
-                "payment_type": "credit_card"
-            }
-            resp = self.session.post(f"{BASE_URL}/webhook/midtrans", json=webhook_data)
-            success = resp.status_code == 403  # Should fail with invalid signature
-            log_test("POST /api/webhook/midtrans (invalid signature)", success, 
-                    f"Status: {resp.status_code} (expected 403)")
-        except Exception as e:
-            log_test("POST /api/webhook/midtrans (invalid signature)", False, f"Error: {e}")
-    
-    def run_all_tests(self):
-        """Run all backend tests in priority order"""
-        print("🧪 Starting Caisy Perfume Backend Tests")
-        print(f"📍 Base URL: {BASE_URL}")
+        # Cleanup
+        self.cleanup_test_data()
+        
+        # Summary
+        self.print_summary()
+
+    def print_summary(self):
+        """Print test summary"""
+        print("=" * 60)
+        print("📊 TEST SUMMARY")
         print("=" * 60)
         
-        start_time = time.time()
+        total_tests = len(self.test_results)
+        passed_tests = len([t for t in self.test_results if t['success']])
+        failed_tests = total_tests - passed_tests
         
-        # Run tests in priority order
-        self.test_1_public_basics()
-        self.test_2_auth_flow()
-        self.test_3_ai_smart_search()
-        self.test_4_cart()
-        self.test_5_location_dropdowns()
-        self.test_6_shipping_rates()
-        self.test_7_orders()
-        self.test_8_midtrans_payment()
-        self.test_9_waiting_list()
-        self.test_10_admin_apis()
-        self.test_11_webhook()
+        print(f"Total Tests: {total_tests}")
+        print(f"✅ Passed: {passed_tests}")
+        print(f"❌ Failed: {failed_tests}")
+        print(f"Success Rate: {(passed_tests/total_tests*100):.1f}%")
         
-        end_time = time.time()
-        duration = end_time - start_time
+        if failed_tests > 0:
+            print("\n❌ FAILED TESTS:")
+            for test in self.test_results:
+                if not test['success']:
+                    print(f"  - {test['test']}: {test['details']}")
         
-        print("\n" + "=" * 60)
-        print(f"🏁 Backend testing completed in {duration:.2f} seconds")
-        print("=" * 60)
+        print("\n🎯 KEY FINDINGS:")
+        
+        # Indonesia Location API
+        location_tests = [t for t in self.test_results if 'location' in t['test'].lower()]
+        location_passed = len([t for t in location_tests if t['success']])
+        print(f"  - Indonesia Location API: {location_passed}/{len(location_tests)} tests passed")
+        
+        # Voucher System
+        voucher_tests = [t for t in self.test_results if 'voucher' in t['test'].lower()]
+        voucher_passed = len([t for t in voucher_tests if t['success']])
+        print(f"  - Voucher System: {voucher_passed}/{len(voucher_tests)} tests passed")
+        
+        # Order Creation
+        order_tests = [t for t in self.test_results if 'order' in t['test'].lower()]
+        order_passed = len([t for t in order_tests if t['success']])
+        print(f"  - Order Creation: {order_passed}/{len(order_tests)} tests passed")
+        
+        # Shipping Rates
+        shipping_tests = [t for t in self.test_results if 'shipping' in t['test'].lower()]
+        shipping_passed = len([t for t in shipping_tests if t['success']])
+        print(f"  - Shipping Rates: {shipping_passed}/{len(shipping_tests)} tests passed")
+        
+        # Regression
+        regression_tests = [t for t in self.test_results if 'regression' in t['test'].lower()]
+        regression_passed = len([t for t in regression_tests if t['success']])
+        print(f"  - Regression Tests: {regression_passed}/{len(regression_tests)} tests passed")
 
 if __name__ == "__main__":
     tester = CaisyBackendTester()

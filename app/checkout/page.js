@@ -1,12 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Header, Footer, WhatsAppButton } from '@/components/layout-parts'
+import { Header, Footer } from '@/components/layout-parts'
 import { useCart, useAuth } from '@/components/providers'
 import { formatRupiah } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Loader2, CheckCircle2, MapPin, User, Truck, CreditCard } from 'lucide-react'
+import { Loader2, CheckCircle2, MapPin, User, Truck, CreditCard, Search, Tag, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function CheckoutPage() {
@@ -16,40 +15,98 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     guest_name: '', guest_email: '', guest_phone: '',
-    province_id: '', city_id: '', district_id: '',
+    province_id: '', province_name: '',
+    city_id: '', city_name: '',
+    district_id: '', district_name: '',
+    village_id: '', village_name: '',
     address_detail: '', postal_code: '', notes: '',
   })
   const [provinces, setProvinces] = useState([])
-  const [cities, setCities] = useState([])
+  const [regencies, setRegencies] = useState([])
   const [districts, setDistricts] = useState([])
+  const [villages, setVillages] = useState([])
   const [rates, setRates] = useState([])
   const [selectedRate, setSelectedRate] = useState(null)
   const [calculatingShipping, setCalculatingShipping] = useState(false)
   const [paying, setPaying] = useState(false)
-  const [orderId, setOrderId] = useState(null)
+  const [loadingLoc, setLoadingLoc] = useState(false)
+  const [kodepos, setKodepos] = useState('')
+  const [searchingKodepos, setSearchingKodepos] = useState(false)
+  // Voucher
+  const [voucherCode, setVoucherCode] = useState('')
+  const [appliedVoucher, setAppliedVoucher] = useState(null)
+  const [voucherLoading, setVoucherLoading] = useState(false)
 
   useEffect(() => {
     if (count === 0) { router.push('/cart'); return }
-    fetch('/api/location/provinces').then(r=>r.json()).then(d => setProvinces(d.provinces))
+    fetch('/api/location/provinces').then(r=>r.json()).then(d => setProvinces(d.provinces || []))
     if (user) setForm(f => ({ ...f, guest_name: user.name, guest_email: user.email, guest_phone: user.phone || '' }))
   }, [user, count])
 
   const onProvince = async (pid) => {
-    setForm(f => ({ ...f, province_id: pid, city_id: '', district_id: '' }))
-    setCities([]); setDistricts([]); setRates([]); setSelectedRate(null)
-    if (pid) {
-      const r = await fetch(`/api/location/cities?province_id=${pid}`)
-      const d = await r.json(); setCities(d.cities)
-    }
+    const p = provinces.find(x => x.id === pid)
+    setForm(f => ({ ...f, province_id: pid, province_name: p?.name || '', city_id:'', city_name:'', district_id:'', district_name:'', village_id:'', village_name:'' }))
+    setRegencies([]); setDistricts([]); setVillages([]); setRates([]); setSelectedRate(null)
+    if (pid) { setLoadingLoc(true); const r = await fetch(`/api/location/regencies?province_id=${pid}`); const d = await r.json(); setRegencies(d.regencies || []); setLoadingLoc(false) }
   }
-  const onCity = async (cid) => {
-    setForm(f => ({ ...f, city_id: cid, district_id: '' }))
-    setDistricts([]); setRates([]); setSelectedRate(null)
-    if (cid) {
-      const r = await fetch(`/api/location/districts?city_id=${cid}`)
-      const d = await r.json(); setDistricts(d.districts)
-    }
+  const onRegency = async (rid) => {
+    const r = regencies.find(x => x.id === rid)
+    setForm(f => ({ ...f, city_id: rid, city_name: r?.name || '', district_id:'', district_name:'', village_id:'', village_name:'' }))
+    setDistricts([]); setVillages([]); setRates([]); setSelectedRate(null)
+    if (rid) { setLoadingLoc(true); const res = await fetch(`/api/location/districts?regency_id=${rid}`); const d = await res.json(); setDistricts(d.districts || []); setLoadingLoc(false) }
   }
+  const onDistrict = async (did) => {
+    const d = districts.find(x => x.id === did)
+    setForm(f => ({ ...f, district_id: did, district_name: d?.name || '', village_id:'', village_name:'' }))
+    setVillages([]); setRates([]); setSelectedRate(null)
+    if (did) { setLoadingLoc(true); const res = await fetch(`/api/location/villages?district_id=${did}`); const data = await res.json(); setVillages(data.villages || []); setLoadingLoc(false) }
+  }
+  const onVillage = (vid) => {
+    const v = villages.find(x => x.id === vid)
+    setForm(f => ({ ...f, village_id: vid, village_name: v?.name || '' }))
+  }
+
+  const searchByKodepos = async () => {
+    if (!kodepos) { toast.error('Masukkan kode pos'); return }
+    setSearchingKodepos(true)
+    try {
+      const r = await fetch(`/api/location/postal-code?code=${kodepos}`)
+      const d = await r.json()
+      const results = d.results || []
+      if (!results.length) { toast.error('Kode pos tidak ditemukan'); setSearchingKodepos(false); return }
+      const result = results[0]
+      // Find province by name (case-insensitive match)
+      const p = provinces.find(x => x.name.toUpperCase() === result.province.toUpperCase())
+      if (!p) { toast.error('Provinsi tidak cocok, silakan pilih manual'); setSearchingKodepos(false); return }
+      setForm(f => ({ ...f, province_id: p.id, province_name: p.name, postal_code: String(result.code) }))
+      // Fetch regencies
+      const regRes = await fetch(`/api/location/regencies?province_id=${p.id}`)
+      const regData = await regRes.json()
+      const regs = regData.regencies || []
+      setRegencies(regs)
+      const reg = regs.find(x => x.name.toUpperCase().includes(result.regency.toUpperCase().replace(/KOTA|KABUPATEN|ADMINISTRASI/gi,'').trim()) || result.regency.toUpperCase().includes(x.name.toUpperCase()))
+      if (reg) {
+        setForm(f => ({ ...f, city_id: reg.id, city_name: reg.name }))
+        const distRes = await fetch(`/api/location/districts?regency_id=${reg.id}`)
+        const distData = await distRes.json()
+        const dists = distData.districts || []
+        setDistricts(dists)
+        const dist = dists.find(x => x.name.toUpperCase() === result.district.toUpperCase())
+        if (dist) {
+          setForm(f => ({ ...f, district_id: dist.id, district_name: dist.name }))
+          const vilRes = await fetch(`/api/location/villages?district_id=${dist.id}`)
+          const vilData = await vilRes.json()
+          const vils = vilData.villages || []
+          setVillages(vils)
+          const vil = vils.find(x => x.name.toUpperCase() === result.village.toUpperCase())
+          if (vil) setForm(f => ({ ...f, village_id: vil.id, village_name: vil.name }))
+        }
+      }
+      toast.success(`Alamat ditemukan: ${result.village}, ${result.district}`)
+    } catch(e) { toast.error('Gagal mencari kode pos') }
+    setSearchingKodepos(false)
+  }
+
   const checkRates = async () => {
     if (!form.district_id) { toast.error('Pilih kecamatan dulu'); return }
     setCalculatingShipping(true); setRates([])
@@ -59,9 +116,23 @@ export default function CheckoutPage() {
     setCalculatingShipping(false)
   }
 
+  const applyVoucher = async () => {
+    if (!voucherCode) return
+    setVoucherLoading(true)
+    try {
+      const r = await fetch('/api/vouchers/validate', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code: voucherCode, subtotal }) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error)
+      setAppliedVoucher(d)
+      toast.success(`Voucher terapan! Diskon ${formatRupiah(d.discount)}`)
+    } catch(e) { toast.error(e.message); setAppliedVoucher(null) }
+    setVoucherLoading(false)
+  }
+  const removeVoucher = () => { setAppliedVoucher(null); setVoucherCode('') }
+
   const stepValid = (s) => {
     if (s === 1) return form.guest_name && form.guest_email && form.guest_phone
-    if (s === 2) return form.province_id && form.city_id && form.district_id && form.address_detail
+    if (s === 2) return form.province_id && form.city_id && form.district_id && form.village_id && form.address_detail
     if (s === 3) return !!selectedRate
     return true
   }
@@ -77,12 +148,11 @@ export default function CheckoutPage() {
           ...form,
           shipping_carrier: selectedRate.courier, shipping_service: selectedRate.service,
           shipping_etd: selectedRate.etd, shipping_cost: selectedRate.price,
+          voucher_code: appliedVoucher?.code,
         })
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
-      setOrderId(d.order.id)
-      // Create Midtrans transaction
       const r2 = await fetch('/api/payment/create-transaction', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ order_id: d.order.id }) })
       const d2 = await r2.json()
       if (!r2.ok) throw new Error(d2.error)
@@ -91,18 +161,14 @@ export default function CheckoutPage() {
           onSuccess: () => { clear(); router.push(`/order/success?order_id=${d.order.id}`) },
           onPending: () => { clear(); router.push(`/order/pending?order_id=${d.order.id}`) },
           onError: () => router.push(`/order/failed?order_id=${d.order.id}`),
-          onClose: () => { toast.error('Pembayaran dibatalkan. Silakan coba lagi.'); setPaying(false) }
+          onClose: () => { toast.error('Pembayaran dibatalkan.'); setPaying(false) }
         })
-      } else {
-        toast.error('Snap belum siap. Refresh halaman.')
-        setPaying(false)
-      }
-    } catch(e) {
-      toast.error('Gagal: ' + e.message); setPaying(false)
-    }
+      } else { toast.error('Snap belum siap. Refresh halaman.'); setPaying(false) }
+    } catch(e) { toast.error('Gagal: ' + e.message); setPaying(false) }
   }
 
-  const totalAmount = subtotal + (selectedRate?.price || 0)
+  const voucherDiscount = appliedVoucher?.discount || 0
+  const totalAmount = subtotal + (selectedRate?.price || 0) - voucherDiscount
 
   return (
     <div className="min-h-screen">
@@ -110,7 +176,6 @@ export default function CheckoutPage() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="font-display text-4xl font-bold text-caisy-burgundy mb-6">Checkout</h1>
 
-        {/* Steps indicator */}
         <div className="flex justify-center mb-8">
           {[
             { n: 1, l: 'Info', icon: User },
@@ -143,28 +208,48 @@ export default function CheckoutPage() {
             {step === 2 && (
               <motion.div initial={{opacity:0}} animate={{opacity:1}}>
                 <h2 className="font-display text-2xl font-bold text-caisy-burgundy mb-4">Alamat Pengiriman</h2>
-                <div className="space-y-3">
+
+                {/* Kodepos quick search */}
+                <div className="bg-caisy-gold/10 border border-caisy-gold/30 rounded-lg p-3 mb-4">
+                  <label className="text-xs font-semibold text-caisy-burgundy flex items-center gap-1"><Search className="w-3 h-3"/> Cari cepat dengan Kode Pos</label>
+                  <div className="flex gap-2 mt-1">
+                    <input value={kodepos} onChange={e=>setKodepos(e.target.value)} placeholder="Misal: 12110" className="flex-1 px-3 py-2 border border-border rounded-md text-sm"/>
+                    <button type="button" onClick={searchByKodepos} disabled={searchingKodepos} className="btn-gold !py-2 !px-4 text-sm flex items-center gap-1">
+                      {searchingKodepos ? <Loader2 className="w-4 h-4 animate-spin"/> : <Search className="w-4 h-4"/>} Cari
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Alamat akan terisi otomatis</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3">
                   <div><label className="text-sm font-semibold">Provinsi *</label>
                     <select value={form.province_id} onChange={e=>onProvince(e.target.value)} required className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white">
                       <option value="">Pilih provinsi</option>
                       {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
-                  <div><label className="text-sm font-semibold">Kota *</label>
-                    <select value={form.city_id} onChange={e=>onCity(e.target.value)} required disabled={!cities.length} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white disabled:opacity-50">
-                      <option value="">Pilih kota</option>
-                      {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <div><label className="text-sm font-semibold">Kab/Kota *</label>
+                    <select value={form.city_id} onChange={e=>onRegency(e.target.value)} required disabled={!regencies.length} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white disabled:opacity-50">
+                      <option value="">Pilih kab/kota</option>
+                      {regencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div><label className="text-sm font-semibold">Kecamatan *</label>
-                    <select value={form.district_id} onChange={e=>setForm({...form, district_id: e.target.value})} required disabled={!districts.length} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white disabled:opacity-50">
+                    <select value={form.district_id} onChange={e=>onDistrict(e.target.value)} required disabled={!districts.length} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white disabled:opacity-50">
                       <option value="">Pilih kecamatan</option>
                       {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
+                  <div><label className="text-sm font-semibold">Kelurahan/Desa *</label>
+                    <select value={form.village_id} onChange={e=>onVillage(e.target.value)} required disabled={!villages.length} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md bg-white disabled:opacity-50">
+                      <option value="">Pilih kelurahan/desa</option>
+                      {villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
                   <div><label className="text-sm font-semibold">Kode Pos</label><input value={form.postal_code} onChange={e=>setForm({...form, postal_code: e.target.value})} className="mt-1 w-full px-3 py-2.5 border border-border rounded-md" /></div>
-                  <div><label className="text-sm font-semibold">Alamat Lengkap *</label><textarea value={form.address_detail} onChange={e=>setForm({...form, address_detail: e.target.value})} rows={3} required placeholder="Nama jalan, nomor rumah, RT/RW, patokan" className="mt-1 w-full px-3 py-2 border border-border rounded-md" /></div>
                 </div>
+                <div className="mt-3"><label className="text-sm font-semibold">Alamat Lengkap *</label><textarea value={form.address_detail} onChange={e=>setForm({...form, address_detail: e.target.value})} rows={3} required placeholder="Nama jalan, nomor rumah, RT/RW, patokan" className="mt-1 w-full px-3 py-2 border border-border rounded-md" /></div>
+                {loadingLoc && <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Memuat...</p>}
               </motion.div>
             )}
             {step === 3 && (
@@ -172,8 +257,7 @@ export default function CheckoutPage() {
                 <h2 className="font-display text-2xl font-bold text-caisy-burgundy mb-4">Pilih Kurir</h2>
                 {rates.length === 0 ? (
                   <button onClick={checkRates} disabled={calculatingShipping} className="btn-primary flex items-center gap-2">
-                    {calculatingShipping && <Loader2 className="w-4 h-4 animate-spin"/>}
-                    Cek Ongkir
+                    {calculatingShipping && <Loader2 className="w-4 h-4 animate-spin"/>} Cek Ongkir
                   </button>
                 ) : (
                   <div className="space-y-2">
@@ -197,18 +281,10 @@ export default function CheckoutPage() {
               <motion.div initial={{opacity:0}} animate={{opacity:1}}>
                 <h2 className="font-display text-2xl font-bold text-caisy-burgundy mb-4">Konfirmasi & Bayar</h2>
                 <div className="space-y-4 text-sm">
-                  <div>
-                    <p className="font-semibold mb-1">Pembeli</p>
-                    <p>{form.guest_name} • {form.guest_email} • {form.guest_phone}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-1">Alamat</p>
-                    <p className="text-muted-foreground">{form.address_detail}, {districts.find(d=>d.id===form.district_id)?.name}, {cities.find(c=>c.id===form.city_id)?.name}, {provinces.find(p=>p.id===form.province_id)?.name} {form.postal_code}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-1">Kurir</p>
-                    <p>{selectedRate.courier} - {selectedRate.service} ({selectedRate.etd}) • {formatRupiah(selectedRate.price)}</p>
-                  </div>
+                  <div><p className="font-semibold mb-1">Pembeli</p><p>{form.guest_name} • {form.guest_email} • {form.guest_phone}</p></div>
+                  <div><p className="font-semibold mb-1">Alamat</p><p className="text-muted-foreground">{form.address_detail}, Kel. {form.village_name}, Kec. {form.district_name}, {form.city_name}, {form.province_name} {form.postal_code}</p></div>
+                  <div><p className="font-semibold mb-1">Kurir</p><p>{selectedRate.courier} - {selectedRate.service} ({selectedRate.etd}) • {formatRupiah(selectedRate.price)}</p></div>
+                  {appliedVoucher && <div><p className="font-semibold mb-1">Voucher</p><p className="text-green-600">{appliedVoucher.code} • Diskon {formatRupiah(voucherDiscount)}</p></div>}
                   {form.notes && <div><p className="font-semibold">Catatan</p><p className="text-muted-foreground">{form.notes}</p></div>}
                 </div>
                 <button onClick={createOrder} disabled={paying} className="btn-primary w-full mt-6 flex items-center justify-center gap-2">
@@ -225,22 +301,40 @@ export default function CheckoutPage() {
           <div>
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-caisy-gold/20 sticky top-24">
               <h3 className="font-display text-lg font-bold mb-3 text-caisy-burgundy">Ringkasan Pesanan</h3>
-              <div className="space-y-2 mb-4 max-h-64 overflow-auto">
+              <div className="space-y-2 mb-4 max-h-48 overflow-auto">
                 {items.map(i => (
                   <div key={i.product_id} className="flex gap-2 items-center text-sm">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={i.image_url} alt={i.name} className="w-12 h-12 rounded object-cover" />
-                    <div className="flex-1">
-                      <p className="font-medium line-clamp-1">{i.name}</p>
-                      <p className="text-xs text-muted-foreground">{i.quantity} x {formatRupiah(i.price)}</p>
-                    </div>
-                    <p className="font-semibold">{formatRupiah(i.price * i.quantity)}</p>
+                    <div className="flex-1"><p className="font-medium line-clamp-1">{i.name}</p><p className="text-xs text-muted-foreground">{i.quantity} x {formatRupiah(i.price)}</p></div>
+                    <p className="font-semibold text-xs">{formatRupiah(i.price * i.quantity)}</p>
                   </div>
                 ))}
               </div>
+
+              {/* Voucher input */}
+              <div className="border-t border-border pt-3 mb-3">
+                <label className="text-xs font-semibold flex items-center gap-1 mb-1"><Tag className="w-3 h-3"/> Kode Voucher</label>
+                {appliedVoucher ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-300 rounded-md p-2">
+                    <div>
+                      <p className="text-xs font-bold text-green-700">{appliedVoucher.code}</p>
+                      <p className="text-[10px] text-green-600">-{formatRupiah(voucherDiscount)}</p>
+                    </div>
+                    <button onClick={removeVoucher} className="text-red-500"><X className="w-4 h-4"/></button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <input value={voucherCode} onChange={e=>setVoucherCode(e.target.value.toUpperCase())} placeholder="KODE" className="flex-1 px-2 py-1.5 border border-border rounded-md text-sm uppercase"/>
+                    <button onClick={applyVoucher} disabled={!voucherCode || voucherLoading} className="btn-outline !py-1.5 !px-3 text-xs">{voucherLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Pakai'}</button>
+                  </div>
+                )}
+              </div>
+
               <div className="border-t border-border pt-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatRupiah(subtotal)}</span></div>
                 <div className="flex justify-between"><span>Ongkir</span><span>{selectedRate ? formatRupiah(selectedRate.price) : '-'}</span></div>
+                {voucherDiscount > 0 && <div className="flex justify-between text-green-600"><span>Diskon voucher</span><span>-{formatRupiah(voucherDiscount)}</span></div>}
                 <div className="flex justify-between font-bold pt-2 border-t border-border mt-2"><span>Total</span><span className="font-display text-xl text-caisy-burgundy">{formatRupiah(totalAmount)}</span></div>
               </div>
             </div>

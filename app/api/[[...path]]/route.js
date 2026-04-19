@@ -209,22 +209,46 @@ async function handle(request, { params }) {
       return json({ ok: true })
     }
 
-    // ============ LOCATION ============
+    // ============ LOCATION (Emsifa Indonesia Regional + KodePos) ============
     if (route === '/location/provinces' && method === 'GET') {
-      return json({ provinces: getProvinces() })
+      try {
+        const r = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json', { next: { revalidate: 86400 } })
+        const data = await r.json()
+        return json({ provinces: data })
+      } catch (e) { return json({ provinces: [] }) }
     }
-    if (route === '/location/cities' && method === 'GET') {
-      return json({ cities: getCities(qs.province_id) })
+    if (route === '/location/regencies' && method === 'GET') {
+      try {
+        const r = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${qs.province_id}.json`, { next: { revalidate: 86400 } })
+        const data = await r.json()
+        return json({ regencies: data })
+      } catch (e) { return json({ regencies: [] }) }
     }
     if (route === '/location/districts' && method === 'GET') {
-      return json({ districts: getDistricts(qs.city_id) })
+      try {
+        const r = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${qs.regency_id}.json`, { next: { revalidate: 86400 } })
+        const data = await r.json()
+        return json({ districts: data })
+      } catch (e) { return json({ districts: [] }) }
+    }
+    if (route === '/location/villages' && method === 'GET') {
+      try {
+        const r = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${qs.district_id}.json`, { next: { revalidate: 86400 } })
+        const data = await r.json()
+        return json({ villages: data })
+      } catch (e) { return json({ villages: [] }) }
+    }
+    if (route === '/location/postal-code' && method === 'GET') {
+      try {
+        const r = await fetch(`https://kodepos.vercel.app/search/?q=${encodeURIComponent(qs.code || '')}`)
+        const data = await r.json()
+        return json({ results: data.data || [] })
+      } catch (e) { return json({ results: [] }) }
     }
 
-    // ============ SHIPPING (Jubelio) ============
+    // ============ SHIPPING (Jubelio + fallback mock) ============
     if (route === '/shipping/rates' && method === 'POST') {
-      const { district_id, weight, subtotal } = await request.json()
-      const district = getDistrictById(district_id)
-      if (!district) return err('District not found', 404)
+      const { district_id, destination, weight, subtotal } = await request.json()
       let rates = []
       try {
         const tokenRes = await fetch('https://api.jubelio.com/login', {
@@ -235,7 +259,7 @@ async function handle(request, { params }) {
         if (tokenData.token) {
           const ratesRes = await fetch('https://api.jubelio.com/shipment/check-rate', {
             method: 'POST', headers: { 'Authorization': `Bearer ${tokenData.token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ destination_id: district.jubelio_destination_id, weight, item_value: subtotal })
+            body: JSON.stringify({ destination_id: district_id, weight, item_value: subtotal })
           })
           const data = await ratesRes.json()
           rates = data?.data || []
@@ -244,7 +268,6 @@ async function handle(request, { params }) {
         console.warn('Jubelio error (using fallback):', e.message)
       }
       if (!rates.length) {
-        // Fallback mock rates
         rates = [
           { courier: 'JNE', service: 'REG', etd: '2-3 hari', price: 15000 },
           { courier: 'JNE', service: 'YES', etd: '1 hari', price: 25000 },
@@ -254,7 +277,30 @@ async function handle(request, { params }) {
           { courier: 'Pos Indonesia', service: 'Paket Kilat', etd: '3-5 hari', price: 10000 },
         ]
       }
-      return json({ rates, district })
+      return json({ rates })
+    }
+
+    // ============ VOUCHERS ============
+    if (route === '/vouchers/validate' && method === 'POST') {
+      const { code, subtotal } = await request.json()
+      if (!code) return err('Kode voucher kosong')
+      const v = await db.collection('vouchers').findOne({ code: code.toUpperCase() })
+      if (!v) return err('Voucher tidak ditemukan', 404)
+      if (!v.is_active) return err('Voucher tidak aktif', 400)
+      const now = new Date()
+      if (v.valid_from && new Date(v.valid_from) > now) return err('Voucher belum berlaku', 400)
+      if (v.valid_until && new Date(v.valid_until) < now) return err('Voucher sudah kadaluwarsa', 400)
+      if (v.usage_limit && v.used_count >= v.usage_limit) return err('Voucher sudah habis dipakai', 400)
+      if (v.min_purchase && subtotal < v.min_purchase) return err(`Minimum belanja Rp ${v.min_purchase.toLocaleString('id-ID')}`, 400)
+      let discount = 0
+      if (v.type === 'percentage') {
+        discount = Math.floor(subtotal * v.value / 100)
+        if (v.max_discount) discount = Math.min(discount, v.max_discount)
+      } else {
+        discount = v.value
+      }
+      discount = Math.min(discount, subtotal)
+      return json({ valid: true, code: v.code, type: v.type, value: v.value, discount, description: v.description || '' })
     }
 
     // ============ ORDERS ============
@@ -278,8 +324,30 @@ async function handle(request, { params }) {
         })
       }
       const shipping_cost = body.shipping_cost || 0
-      const total_amount = subtotal + shipping_cost
-      const district = body.district_id ? getDistrictById(body.district_id) : null
+      // Voucher validation
+      let voucher_code = null, voucher_discount = 0, voucher_description = null
+      if (body.voucher_code) {
+        const v = await db.collection('vouchers').findOne({ code: body.voucher_code.toUpperCase() })
+        if (v && v.is_active) {
+          const now = new Date()
+          const okDate = (!v.valid_from || new Date(v.valid_from) <= now) && (!v.valid_until || new Date(v.valid_until) >= now)
+          const okUsage = !v.usage_limit || v.used_count < v.usage_limit
+          const okMin = !v.min_purchase || subtotal >= v.min_purchase
+          if (okDate && okUsage && okMin) {
+            if (v.type === 'percentage') {
+              voucher_discount = Math.floor(subtotal * v.value / 100)
+              if (v.max_discount) voucher_discount = Math.min(voucher_discount, v.max_discount)
+            } else {
+              voucher_discount = v.value
+            }
+            voucher_discount = Math.min(voucher_discount, subtotal)
+            voucher_code = v.code
+            voucher_description = v.description || ''
+            await db.collection('vouchers').updateOne({ id: v.id }, { $inc: { used_count: 1 } })
+          }
+        }
+      }
+      const total_amount = subtotal + shipping_cost - voucher_discount
       const order = {
         id: uuidv4(),
         order_code: orderCode,
@@ -288,14 +356,15 @@ async function handle(request, { params }) {
         guest_email: body.guest_email || null,
         guest_phone: body.guest_phone || null,
         items: enrichedItems,
-        subtotal, shipping_cost, total_amount,
+        subtotal, shipping_cost, voucher_code, voucher_discount, voucher_description, total_amount,
         shipping_carrier: body.shipping_carrier || null,
         shipping_service: body.shipping_service || null,
         shipping_etd: body.shipping_etd || null,
         status: 'pending', snap_token: null, payment_method: null, paid_at: null,
-        province_id: body.province_id || null, province_name: district?.province_name || null,
-        city_id: body.city_id || null, city_name: district?.city_name || null,
-        district_id: body.district_id || null, district_name: district?.name || null,
+        province_id: body.province_id || null, province_name: body.province_name || null,
+        city_id: body.city_id || null, city_name: body.city_name || null,
+        district_id: body.district_id || null, district_name: body.district_name || null,
+        village_id: body.village_id || null, village_name: body.village_name || null,
         address_detail: body.address_detail || null,
         postal_code: body.postal_code || null,
         notes: body.notes || null,
@@ -602,6 +671,57 @@ async function handle(request, { params }) {
         }
         const topProducts = Object.entries(productSales).map(([id, v]) => ({ product_id: id, ...v })).sort((a,b) => b.quantity - a.quantity).slice(0,10)
         return json({ totalRevenue, orderCount: orders.length, topProducts })
+      }
+
+      if (route === '/admin/vouchers' && method === 'GET') {
+        const vouchers = await db.collection('vouchers').find({}).sort({ created_at: -1 }).toArray()
+        return json({ vouchers: clean(vouchers) })
+      }
+      if (route === '/admin/vouchers' && method === 'POST') {
+        const b = await request.json()
+        if (!b.code) return err('Kode voucher wajib diisi')
+        const existing = await db.collection('vouchers').findOne({ code: b.code.toUpperCase() })
+        if (existing) return err('Kode voucher sudah ada', 409)
+        const v = {
+          id: uuidv4(),
+          code: b.code.toUpperCase(),
+          type: b.type || 'percentage',
+          value: parseInt(b.value) || 0,
+          min_purchase: parseInt(b.min_purchase) || 0,
+          max_discount: parseInt(b.max_discount) || 0,
+          usage_limit: parseInt(b.usage_limit) || 0,
+          used_count: 0,
+          valid_from: b.valid_from ? new Date(b.valid_from) : null,
+          valid_until: b.valid_until ? new Date(b.valid_until) : null,
+          is_active: b.is_active !== false,
+          description: b.description || '',
+          created_at: new Date(), updated_at: new Date(),
+        }
+        await db.collection('vouchers').insertOne(v)
+        return json({ voucher: clean(v) })
+      }
+      if (route.startsWith('/admin/vouchers/') && method === 'PUT') {
+        const id = route.replace('/admin/vouchers/', '')
+        const b = await request.json()
+        const update = { updated_at: new Date() }
+        if (b.code) update.code = b.code.toUpperCase()
+        if (b.type) update.type = b.type
+        if (b.value !== undefined) update.value = parseInt(b.value) || 0
+        if (b.min_purchase !== undefined) update.min_purchase = parseInt(b.min_purchase) || 0
+        if (b.max_discount !== undefined) update.max_discount = parseInt(b.max_discount) || 0
+        if (b.usage_limit !== undefined) update.usage_limit = parseInt(b.usage_limit) || 0
+        if (b.valid_from !== undefined) update.valid_from = b.valid_from ? new Date(b.valid_from) : null
+        if (b.valid_until !== undefined) update.valid_until = b.valid_until ? new Date(b.valid_until) : null
+        if (b.is_active !== undefined) update.is_active = !!b.is_active
+        if (b.description !== undefined) update.description = b.description
+        await db.collection('vouchers').updateOne({ id }, { $set: update })
+        const v = await db.collection('vouchers').findOne({ id })
+        return json({ voucher: clean(v) })
+      }
+      if (route.startsWith('/admin/vouchers/') && method === 'DELETE') {
+        const id = route.replace('/admin/vouchers/', '')
+        await db.collection('vouchers').deleteOne({ id })
+        return json({ ok: true })
       }
 
       if (route === '/admin/settings' && method === 'GET') {
