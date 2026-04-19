@@ -408,6 +408,9 @@ async function handle(request, { params }) {
       if (order.shipping_cost > 0) {
         itemDetails.push({ id: 'ONGKIR', price: order.shipping_cost, quantity: 1, name: `Ongkir ${order.shipping_carrier || ''}`.substring(0, 50) })
       }
+      if (order.voucher_discount && order.voucher_discount > 0) {
+        itemDetails.push({ id: 'VOUCHER', price: -order.voucher_discount, quantity: 1, name: `Voucher ${order.voucher_code || ''}`.substring(0, 50) })
+      }
       const parameter = {
         transaction_details: { order_id: order.order_code, gross_amount: order.total_amount },
         customer_details: {
@@ -490,6 +493,103 @@ async function handle(request, { params }) {
     if (route === '/waiting-list/top' && method === 'GET') {
       const items = await db.collection('waiting_list_requests').find({}).sort({ request_count: -1 }).limit(10).toArray()
       return json({ items: clean(items) })
+    }
+
+    // ============ FILE UPLOAD & SERVE ============
+    if (route === '/admin/upload' && method === 'POST') {
+      const admin = await requireAdmin(request)
+      if (!admin) return err('Forbidden', 403)
+      const body = await request.json()
+      const match = (body.data || '').match(/^data:([^;]+);base64,(.+)$/)
+      if (!match) return err('Invalid data URL')
+      const mime = match[1]
+      const base64 = match[2]
+      if (base64.length * 0.75 > 5 * 1024 * 1024) return err('File terlalu besar (max 5MB)', 413)
+      const id = uuidv4()
+      await db.collection('files').insertOne({ id, data: base64, content_type: mime, size: base64.length, filename: body.filename || 'upload', created_at: new Date() })
+      return json({ url: `/api/files/${id}`, id })
+    }
+    if (route.startsWith('/files/') && method === 'GET') {
+      const id = route.replace('/files/', '')
+      const f = await db.collection('files').findOne({ id })
+      if (!f) return err('Not found', 404)
+      const buffer = Buffer.from(f.data, 'base64')
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': f.content_type || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=86400',
+          'Content-Length': String(buffer.length),
+        },
+      })
+    }
+
+    // ============ BANNERS (public + admin) ============
+    if (route === '/banners' && method === 'GET') {
+      const banners = await db.collection('banners').find({ is_active: true }).sort({ order: 1, created_at: -1 }).limit(3).toArray()
+      return json({ banners: clean(banners) })
+    }
+
+    // ============ WISHLIST ============
+    if (route === '/wishlist' && method === 'GET') {
+      const session = getSessionFromRequest(request)
+      if (!session) return json({ product_ids: [] })
+      const w = await db.collection('wishlists').findOne({ user_id: session.userId })
+      const ids = w?.product_ids || []
+      if (!ids.length) return json({ product_ids: [], products: [] })
+      const products = await db.collection('products').find({ id: { $in: ids }, is_active: true }).toArray()
+      return json({ product_ids: ids, products: clean(products) })
+    }
+    if (route === '/wishlist/toggle' && method === 'POST') {
+      const session = getSessionFromRequest(request)
+      if (!session) return err('Login dulu untuk menggunakan wishlist', 401)
+      const { product_id } = await request.json()
+      const w = await db.collection('wishlists').findOne({ user_id: session.userId })
+      let ids = w?.product_ids || []
+      let added
+      if (ids.includes(product_id)) { ids = ids.filter(i => i !== product_id); added = false }
+      else { ids.push(product_id); added = true }
+      await db.collection('wishlists').updateOne({ user_id: session.userId }, { $set: { user_id: session.userId, product_ids: ids, updated_at: new Date() } }, { upsert: true })
+      return json({ ok: true, added, product_ids: ids })
+    }
+
+    // ============ REVIEWS ============
+    if (route.match(/^\/products\/[^/]+\/reviews$/) && method === 'GET') {
+      const productId = route.split('/')[2]
+      // Accept both id and slug
+      let pid = productId
+      if (!productId.match(/^[0-9a-f-]{36}$/i)) {
+        const p = await db.collection('products').findOne({ slug: productId })
+        if (p) pid = p.id
+      }
+      const reviews = await db.collection('reviews').find({ product_id: pid, is_approved: true }).sort({ created_at: -1 }).toArray()
+      const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
+      return json({ reviews: clean(reviews), count: reviews.length, average: Math.round(avg * 10) / 10 })
+    }
+    if (route.match(/^\/products\/[^/]+\/reviews$/) && method === 'POST') {
+      const productId = route.split('/')[2]
+      const session = getSessionFromRequest(request)
+      if (!session) return err('Login dulu untuk memberi review', 401)
+      const { rating, content } = await request.json()
+      if (!rating || rating < 1 || rating > 5) return err('Rating harus 1-5')
+      const user = await db.collection('users').findOne({ id: session.userId })
+      let pid = productId
+      if (!productId.match(/^[0-9a-f-]{36}$/i)) {
+        const p = await db.collection('products').findOne({ slug: productId })
+        if (p) pid = p.id
+      }
+      const review = {
+        id: uuidv4(),
+        product_id: pid,
+        user_id: session.userId,
+        user_name: user?.name || 'Customer',
+        rating: parseInt(rating),
+        content: content || '',
+        is_approved: true,
+        created_at: new Date(),
+      }
+      await db.collection('reviews').insertOne(review)
+      return json({ review: clean(review) })
     }
 
     // ============ ADMIN ============
@@ -721,6 +821,63 @@ async function handle(request, { params }) {
       if (route.startsWith('/admin/vouchers/') && method === 'DELETE') {
         const id = route.replace('/admin/vouchers/', '')
         await db.collection('vouchers').deleteOne({ id })
+        return json({ ok: true })
+      }
+
+      if (route === '/admin/banners' && method === 'GET') {
+        const banners = await db.collection('banners').find({}).sort({ order: 1, created_at: -1 }).toArray()
+        return json({ banners: clean(banners) })
+      }
+      if (route === '/admin/banners' && method === 'POST') {
+        const b = await request.json()
+        const count = await db.collection('banners').countDocuments()
+        if (count >= 3 && !b.allow_over_limit) return err('Maksimal 3 banner. Hapus salah satu dulu.', 400)
+        const banner = {
+          id: uuidv4(),
+          image_url: b.image_url || '',
+          title: b.title || '',
+          subtitle: b.subtitle || '',
+          link_url: b.link_url || '',
+          voucher_code: b.voucher_code || '',
+          is_active: b.is_active !== false,
+          order: parseInt(b.order) || 0,
+          created_at: new Date(), updated_at: new Date(),
+        }
+        await db.collection('banners').insertOne(banner)
+        return json({ banner: clean(banner) })
+      }
+      if (route.startsWith('/admin/banners/') && method === 'PUT') {
+        const id = route.replace('/admin/banners/', '')
+        const b = await request.json()
+        const update = { updated_at: new Date() }
+        for (const k of ['image_url','title','subtitle','link_url','voucher_code','is_active','order']) {
+          if (b[k] !== undefined) update[k] = k === 'order' ? (parseInt(b[k]) || 0) : b[k]
+        }
+        await db.collection('banners').updateOne({ id }, { $set: update })
+        const banner = await db.collection('banners').findOne({ id })
+        return json({ banner: clean(banner) })
+      }
+      if (route.startsWith('/admin/banners/') && method === 'DELETE') {
+        const id = route.replace('/admin/banners/', '')
+        await db.collection('banners').deleteOne({ id })
+        return json({ ok: true })
+      }
+
+      if (route === '/admin/reviews' && method === 'GET') {
+        const reviews = await db.collection('reviews').find({}).sort({ created_at: -1 }).toArray()
+        const products = await db.collection('products').find({}).toArray()
+        const pmap = {}; products.forEach(p => pmap[p.id] = p.name)
+        return json({ reviews: clean(reviews).map(r => ({ ...r, product_name: pmap[r.product_id] || 'Unknown' })) })
+      }
+      if (route.startsWith('/admin/reviews/') && method === 'PATCH') {
+        const id = route.replace('/admin/reviews/', '')
+        const { is_approved } = await request.json()
+        await db.collection('reviews').updateOne({ id }, { $set: { is_approved } })
+        return json({ ok: true })
+      }
+      if (route.startsWith('/admin/reviews/') && method === 'DELETE') {
+        const id = route.replace('/admin/reviews/', '')
+        await db.collection('reviews').deleteOne({ id })
         return json({ ok: true })
       }
 

@@ -5,12 +5,13 @@
 @tailwind utilities;
 
 :root {
-  --caisy-burgundy: #7B1E2C;
-  --caisy-burgundy-dark: #5F0E1C;
-  --caisy-gold: #C9A96E;
-  --caisy-gold-light: #E3C892;
+  --caisy-primary: #A59F79;
+  --caisy-primary-dark: #857F5E;
+  --caisy-accent: #3D3626;
+  --caisy-accent-light: #6B5B4A;
   --caisy-cream: #FAF7F2;
-  --caisy-charcoal: #1A1A2E;
+  --caisy-soft: #EFEAE0;
+  --caisy-charcoal: #2D2A22;
 }
 
 body {
@@ -30,24 +31,24 @@ h1, h2, h3, h4, h5, h6, .font-display {
 @layer base {
   :root {
     --background: 36 33% 97%;
-    --foreground: 240 27% 14%;
+    --foreground: 40 15% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 240 27% 14%;
+    --card-foreground: 40 15% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 27% 14%;
-    --primary: 350 60% 30%;
+    --popover-foreground: 40 15% 15%;
+    --primary: 48 19% 56%;
     --primary-foreground: 36 33% 97%;
-    --secondary: 38 44% 61%;
-    --secondary-foreground: 240 27% 14%;
+    --secondary: 40 24% 25%;
+    --secondary-foreground: 36 33% 97%;
     --muted: 36 25% 92%;
-    --muted-foreground: 240 10% 40%;
-    --accent: 38 44% 61%;
-    --accent-foreground: 240 27% 14%;
+    --muted-foreground: 40 10% 40%;
+    --accent: 40 24% 25%;
+    --accent-foreground: 36 33% 97%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 36 33% 97%;
-    --border: 36 20% 88%;
-    --input: 36 20% 88%;
-    --ring: 350 60% 30%;
+    --border: 36 20% 85%;
+    --input: 36 20% 85%;
+    --ring: 48 19% 56%;
     --radius: 0.5rem;
   }
 }
@@ -58,32 +59,52 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 @layer utilities {
-  .text-caisy-burgundy { color: #7B1E2C; }
-  .bg-caisy-burgundy { background-color: #7B1E2C; }
-  .text-caisy-gold { color: #C9A96E; }
-  .bg-caisy-gold { background-color: #C9A96E; }
+  /* Legacy class names kept for backward compatibility — now using new palette */
+  .text-caisy-burgundy { color: #A59F79; }
+  .bg-caisy-burgundy { background-color: #A59F79; }
+  .text-caisy-gold { color: #3D3626; }
+  .bg-caisy-gold { background-color: #3D3626; }
   .bg-caisy-cream { background-color: #FAF7F2; }
-  .text-caisy-charcoal { color: #1A1A2E; }
-  .border-caisy-gold { border-color: #C9A96E; }
-  .border-caisy-burgundy { border-color: #7B1E2C; }
+  .text-caisy-charcoal { color: #2D2A22; }
+  .border-caisy-gold { border-color: #6B5B4A; }
+  .border-caisy-burgundy { border-color: #A59F79; }
+
+  /* New semantic names */
+  .text-caisy-primary { color: #A59F79; }
+  .bg-caisy-primary { background-color: #A59F79; }
+  .text-caisy-accent { color: #3D3626; }
+  .bg-caisy-accent { background-color: #3D3626; }
+  .border-caisy-primary { border-color: #A59F79; }
 
   .btn-primary {
-    @apply bg-caisy-burgundy text-white hover:brightness-110 transition-all duration-200 px-6 py-3 rounded-md font-medium tracking-wide shadow-md hover:shadow-lg;
+    @apply text-white px-6 py-3 rounded-md font-medium tracking-wide shadow-md hover:shadow-lg transition-all duration-200;
+    background-color: #A59F79;
   }
+  .btn-primary:hover { background-color: #857F5E; }
   .btn-gold {
-    @apply bg-caisy-gold text-white hover:brightness-105 transition-all duration-200 px-6 py-3 rounded-md font-medium tracking-wide shadow-md hover:shadow-lg;
+    @apply text-white px-6 py-3 rounded-md font-medium tracking-wide shadow-md hover:shadow-lg transition-all duration-200;
+    background-color: #3D3626;
   }
+  .btn-gold:hover { background-color: #5E4E3D; }
   .btn-outline {
-    @apply border-2 border-caisy-burgundy text-caisy-burgundy hover:bg-caisy-burgundy hover:text-white transition-all duration-200 px-6 py-3 rounded-md font-medium tracking-wide;
+    @apply border-2 px-6 py-3 rounded-md font-medium tracking-wide transition-all duration-200;
+    border-color: #A59F79;
+    color: #A59F79;
   }
+  .btn-outline:hover { background-color: #A59F79; color: white; }
+
   .gold-gradient {
-    background: linear-gradient(135deg, #C9A96E 0%, #E3C892 50%, #C9A96E 100%);
+    background: linear-gradient(135deg, #A59F79 0%, #C5BBA0 50%, #A59F79 100%);
   }
   .burgundy-gradient {
-    background: linear-gradient(135deg, #7B1E2C 0%, #5F0E1C 100%);
+    background: linear-gradient(135deg, #3D3626 0%, #2D2A22 100%);
   }
+  .primary-gradient {
+    background: linear-gradient(135deg, #A59F79 0%, #857F5E 100%);
+  }
+
   .animate-shimmer {
-    background: linear-gradient(90deg, rgba(201,169,110,0.1) 0%, rgba(201,169,110,0.3) 50%, rgba(201,169,110,0.1) 100%);
+    background: linear-gradient(90deg, rgba(165,159,121,0.1) 0%, rgba(165,159,121,0.3) 50%, rgba(165,159,121,0.1) 100%);
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }

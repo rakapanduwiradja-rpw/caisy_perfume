@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
-import { ShoppingBag, User, Search, Menu, X, LogOut, Package, Shield } from 'lucide-react'
+import { ShoppingBag, User, Search, Menu, X, LogOut, Package, Shield, Heart } from 'lucide-react'
 import { useCart, useAuth } from './providers'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -12,73 +12,67 @@ export function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-40 bg-caisy-cream/90 backdrop-blur-md border-b border-caisy-gold/30">
+    <header className="sticky top-0 z-40 bg-caisy-cream/90 backdrop-blur-md border-b border-caisy-primary/30">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full burgundy-gradient flex items-center justify-center text-caisy-gold text-xl font-display font-bold shadow-md">C</div>
+          <div className="w-10 h-10 rounded-full primary-gradient flex items-center justify-center text-white text-xl font-display font-bold shadow-md">C</div>
           <div>
-            <h1 className="font-display text-xl font-bold text-caisy-burgundy leading-none">Caisy</h1>
-            <p className="text-[10px] tracking-widest uppercase text-caisy-gold">Perfume</p>
+            <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">Caisy</h1>
+            <p className="text-[10px] tracking-widest uppercase text-caisy-accent">Perfume</p>
           </div>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <Link href="/" className="hover:text-caisy-burgundy transition">Home</Link>
-          <Link href="/catalog" className="hover:text-caisy-burgundy transition">Katalog</Link>
-          <Link href="/smart-search" className="hover:text-caisy-burgundy transition flex items-center gap-1">
-            <Search className="w-4 h-4" /> AI Search
-          </Link>
-          <Link href="/waiting-list" className="hover:text-caisy-burgundy transition">Waiting List</Link>
+          <Link href="/" className="hover:text-caisy-primary transition">Home</Link>
+          <Link href="/catalog" className="hover:text-caisy-primary transition">Katalog</Link>
+          <Link href="/smart-search" className="hover:text-caisy-primary transition flex items-center gap-1"><Search className="w-4 h-4" /> AI Search</Link>
+          <Link href="/waiting-list" className="hover:text-caisy-primary transition">Waiting List</Link>
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link href="/cart" className="relative p-2 hover:bg-caisy-gold/10 rounded-full transition">
-            <ShoppingBag className="w-5 h-5 text-caisy-burgundy" />
-            {count > 0 && (
-              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 bg-caisy-burgundy text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">
-                {count}
-              </motion.span>
-            )}
+        <div className="flex items-center gap-2">
+          {user && (
+            <Link href="/wishlist" className="p-2 hover:bg-caisy-primary/10 rounded-full hidden sm:block" aria-label="Wishlist">
+              <Heart className="w-5 h-5 text-caisy-primary" />
+            </Link>
+          )}
+          <Link href="/cart" className="relative p-2 hover:bg-caisy-primary/10 rounded-full">
+            <ShoppingBag className="w-5 h-5 text-caisy-primary" />
+            {count > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 bg-caisy-primary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">{count}</motion.span>}
           </Link>
 
           {user ? (
             <div className="relative">
-              <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="p-2 hover:bg-caisy-gold/10 rounded-full">
-                <User className="w-5 h-5 text-caisy-burgundy" />
+              <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="p-2 hover:bg-caisy-primary/10 rounded-full">
+                <User className="w-5 h-5 text-caisy-primary" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-12 bg-white border border-caisy-gold/30 rounded-lg shadow-xl py-2 min-w-[200px]" onMouseLeave={() => setUserMenuOpen(false)}>
-                  <div className="px-4 py-2 border-b border-border">
-                    <p className="text-sm font-semibold">{user.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                  </div>
-                  <Link href="/profile" className="block px-4 py-2 hover:bg-caisy-gold/10 text-sm flex items-center gap-2"><User className="w-4 h-4" /> Profil</Link>
-                  <Link href="/orders" className="block px-4 py-2 hover:bg-caisy-gold/10 text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Pesanan Saya</Link>
-                  {user.role === 'admin' && (
-                    <Link href="/admin" className="block px-4 py-2 hover:bg-caisy-gold/10 text-sm flex items-center gap-2 text-caisy-burgundy font-semibold"><Shield className="w-4 h-4" /> Admin Panel</Link>
-                  )}
-                  <button onClick={() => { logout(); setUserMenuOpen(false) }} className="w-full text-left px-4 py-2 hover:bg-caisy-gold/10 text-sm flex items-center gap-2 text-red-600"><LogOut className="w-4 h-4" /> Keluar</button>
+                <div className="absolute right-0 top-12 bg-white border border-caisy-primary/30 rounded-lg shadow-xl py-2 min-w-[200px]" onMouseLeave={() => setUserMenuOpen(false)}>
+                  <div className="px-4 py-2 border-b border-border"><p className="text-sm font-semibold">{user.name}</p><p className="text-xs text-muted-foreground truncate">{user.email}</p></div>
+                  <Link href="/profile" className="block px-4 py-2 hover:bg-caisy-primary/10 text-sm flex items-center gap-2"><User className="w-4 h-4" /> Profil</Link>
+                  <Link href="/orders" className="block px-4 py-2 hover:bg-caisy-primary/10 text-sm flex items-center gap-2"><Package className="w-4 h-4" /> Pesanan Saya</Link>
+                  <Link href="/wishlist" className="block px-4 py-2 hover:bg-caisy-primary/10 text-sm flex items-center gap-2"><Heart className="w-4 h-4" /> Wishlist</Link>
+                  {user.role === 'admin' && <Link href="/admin" className="block px-4 py-2 hover:bg-caisy-primary/10 text-sm flex items-center gap-2 text-caisy-primary font-semibold"><Shield className="w-4 h-4" /> Admin Panel</Link>}
+                  <button onClick={() => { logout(); setUserMenuOpen(false) }} className="w-full text-left px-4 py-2 hover:bg-caisy-primary/10 text-sm flex items-center gap-2 text-red-600"><LogOut className="w-4 h-4" /> Keluar</button>
                 </div>
               )}
             </div>
           ) : (
-            <Link href="/login" className="hidden md:inline-block text-sm px-4 py-2 bg-caisy-burgundy text-white rounded-md hover:brightness-110 transition">Masuk</Link>
+            <Link href="/login" className="hidden md:inline-block text-sm px-4 py-2 bg-caisy-primary text-white rounded-md hover:brightness-110 transition">Masuk</Link>
           )}
 
-          <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
         </div>
       </div>
 
       <AnimatePresence>
         {mobileOpen && (
-          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="md:hidden overflow-hidden bg-white border-t border-caisy-gold/30">
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="md:hidden overflow-hidden bg-white border-t border-caisy-primary/30">
             <nav className="flex flex-col p-4 gap-3">
               <Link href="/" onClick={()=>setMobileOpen(false)} className="py-2">Home</Link>
               <Link href="/catalog" onClick={()=>setMobileOpen(false)} className="py-2">Katalog</Link>
               <Link href="/smart-search" onClick={()=>setMobileOpen(false)} className="py-2">AI Smart Search</Link>
               <Link href="/waiting-list" onClick={()=>setMobileOpen(false)} className="py-2">Waiting List</Link>
+              {user && <Link href="/wishlist" onClick={()=>setMobileOpen(false)} className="py-2">Wishlist</Link>}
               {!user && <Link href="/login" onClick={()=>setMobileOpen(false)} className="py-2 btn-primary text-center">Masuk</Link>}
             </nav>
           </motion.div>
@@ -94,45 +88,27 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12 grid md:grid-cols-4 gap-8">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-full bg-caisy-gold flex items-center justify-center text-caisy-burgundy text-xl font-display font-bold">C</div>
-            <div>
-              <h3 className="font-display text-xl font-bold">Caisy</h3>
-              <p className="text-[10px] tracking-widest uppercase text-caisy-gold">Perfume</p>
-            </div>
+            <div className="w-10 h-10 rounded-full bg-caisy-primary flex items-center justify-center text-white text-xl font-display font-bold">C</div>
+            <div><h3 className="font-display text-xl font-bold">Caisy</h3><p className="text-[10px] tracking-widest uppercase text-caisy-primary">Perfume</p></div>
           </div>
           <p className="text-sm text-white/80">Wangian Mewah, Harga Terjangkau. Koleksi parfum dupe premium terinspirasi brand dunia.</p>
         </div>
         <div>
-          <h4 className="font-display font-semibold text-caisy-gold mb-3">Navigasi</h4>
-          <ul className="space-y-2 text-sm text-white/80">
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/catalog">Katalog</Link></li>
-            <li><Link href="/smart-search">AI Smart Search</Link></li>
-            <li><Link href="/waiting-list">Waiting List</Link></li>
-          </ul>
+          <h4 className="font-display font-semibold text-caisy-primary mb-3">Navigasi</h4>
+          <ul className="space-y-2 text-sm text-white/80"><li><Link href="/">Home</Link></li><li><Link href="/catalog">Katalog</Link></li><li><Link href="/smart-search">AI Smart Search</Link></li><li><Link href="/waiting-list">Waiting List</Link></li></ul>
         </div>
         <div>
-          <h4 className="font-display font-semibold text-caisy-gold mb-3">Bantuan</h4>
-          <ul className="space-y-2 text-sm text-white/80">
-            <li><Link href="/login">Akun Saya</Link></li>
-            <li><Link href="/orders">Cek Pesanan</Link></li>
-            <li><a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer">WhatsApp CS</a></li>
-          </ul>
+          <h4 className="font-display font-semibold text-caisy-primary mb-3">Bantuan</h4>
+          <ul className="space-y-2 text-sm text-white/80"><li><Link href="/login">Akun Saya</Link></li><li><Link href="/orders">Cek Pesanan</Link></li><li><a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer">WhatsApp CS</a></li></ul>
         </div>
         <div>
-          <h4 className="font-display font-semibold text-caisy-gold mb-3">Hubungi Kami</h4>
+          <h4 className="font-display font-semibold text-caisy-primary mb-3">Hubungi Kami</h4>
           <p className="text-sm text-white/80">cs@caisyperfume.com</p>
           <p className="text-sm text-white/80">+62 812-3456-7890</p>
-          <div className="flex gap-3 mt-3">
-            <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-gold hover:text-caisy-burgundy flex items-center justify-center transition" href="#">IG</a>
-            <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-gold hover:text-caisy-burgundy flex items-center justify-center transition" href="#">TT</a>
-            <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-gold hover:text-caisy-burgundy flex items-center justify-center transition" href="#">FB</a>
-          </div>
+          <div className="flex gap-3 mt-3"><a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition" href="#">IG</a><a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition" href="#">TT</a><a className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition" href="#">FB</a></div>
         </div>
       </div>
-      <div className="border-t border-white/10 text-center text-xs py-4 text-white/60">
-        © {new Date().getFullYear()} Caisy Perfume. All rights reserved.
-      </div>
+      <div className="border-t border-white/10 text-center text-xs py-4 text-white/60">© {new Date().getFullYear()} Caisy Perfume. All rights reserved.</div>
     </footer>
   )
 }

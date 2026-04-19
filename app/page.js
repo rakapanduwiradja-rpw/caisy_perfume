@@ -1,19 +1,60 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Search, Sparkles, Heart, TrendingUp, ShieldCheck, Truck, Star } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Sparkles, Heart, TrendingUp, ShieldCheck, Truck, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Header, Footer, WhatsAppButton } from '@/components/layout-parts'
 import { ProductCard } from '@/components/product-card'
 
 const HERO_IMAGE = 'https://images.pexels.com/photos/36389341/pexels-photo-36389341.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1080'
 
+function BannerSlider({ banners }) {
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const t = setInterval(() => setIdx(i => (i+1) % banners.length), 5000)
+    return () => clearInterval(t)
+  }, [banners.length])
+  if (!banners.length) return null
+  const b = banners[idx]
+  return (
+    <section className="container mx-auto px-4 py-8">
+      <div className="relative rounded-2xl overflow-hidden h-64 md:h-80 shadow-lg">
+        <AnimatePresence mode="wait">
+          <motion.div key={idx} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.6}} className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={b.image_url} alt={b.title} className="w-full h-full object-cover"/>
+            <div className="absolute inset-0" style={{background:'linear-gradient(to right, rgba(61,54,38,0.6) 0%, rgba(61,54,38,0.2) 100%)'}}/>
+            <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-16 text-white">
+              {b.title && <h2 className="font-display text-2xl md:text-4xl font-bold mb-2">{b.title}</h2>}
+              {b.subtitle && <p className="text-sm md:text-lg mb-4 max-w-xl">{b.subtitle}</p>}
+              {b.voucher_code && <p className="font-mono text-sm mb-3">Kode: <span className="bg-white/20 backdrop-blur px-2 py-1 rounded">{b.voucher_code}</span></p>}
+              {b.link_url && <Link href={b.link_url} className="inline-block w-fit bg-white text-caisy-primary px-6 py-2 rounded-md font-semibold hover:scale-105 transition">Lihat Sekarang →</Link>}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+        {banners.length > 1 && (
+          <>
+            <button onClick={()=>setIdx((idx-1+banners.length)%banners.length)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 rounded-full flex items-center justify-center hover:bg-white"><ChevronLeft className="w-5 h-5"/></button>
+            <button onClick={()=>setIdx((idx+1)%banners.length)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 rounded-full flex items-center justify-center hover:bg-white"><ChevronRight className="w-5 h-5"/></button>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {banners.map((_, i) => <button key={i} onClick={()=>setIdx(i)} className={`h-1.5 rounded-full transition-all ${i===idx ? 'w-8 bg-white' : 'w-1.5 bg-white/50'}`}/>)}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function App() {
   const [featured, setFeatured] = useState([])
+  const [banners, setBanners] = useState([])
   const [aiQuery, setAiQuery] = useState('')
 
   useEffect(() => {
     fetch('/api/products/featured').then(r => r.json()).then(d => setFeatured(d.products || []))
+    fetch('/api/banners').then(r => r.json()).then(d => setBanners(d.banners || []))
   }, [])
 
   return (
@@ -50,6 +91,9 @@ function App() {
           </motion.div>
         </div>
       </section>
+
+      {/* BANNER PROMO (slider) */}
+      <BannerSlider banners={banners} />
 
       {/* TRUST BADGES */}
       <section className="bg-white border-b border-caisy-gold/20">

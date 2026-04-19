@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers'
-import { LayoutDashboard, Package, ShoppingBag, Users, Box, Heart, BarChart3, Settings, LogOut, Shield, Tag } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Box, Heart, BarChart3, Settings, LogOut, Shield, Tag, Image as ImageIcon, Star } from 'lucide-react'
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,7 +11,9 @@ const NAV = [
   { href: '/admin/orders', label: 'Pesanan', icon: ShoppingBag },
   { href: '/admin/customers', label: 'Pelanggan', icon: Users },
   { href: '/admin/stock', label: 'Stok', icon: Box },
+  { href: '/admin/banners', label: 'Banner', icon: ImageIcon },
   { href: '/admin/vouchers', label: 'Voucher', icon: Tag },
+  { href: '/admin/reviews', label: 'Review', icon: Star },
   { href: '/admin/waiting-list', label: 'Waiting List', icon: Heart },
   { href: '/admin/reports', label: 'Laporan', icon: BarChart3 },
   { href: '/admin/settings', label: 'Pengaturan', icon: Settings },

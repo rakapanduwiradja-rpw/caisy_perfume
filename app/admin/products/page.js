@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { formatRupiah, stockStatus } from '@/lib/utils'
-import { Plus, Edit2, Trash2, Loader2, Search, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, Loader2, Search, X, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 function ProductForm({ product, onClose, onSaved }) {
@@ -12,6 +12,23 @@ function ProductForm({ product, onClose, onSaved }) {
     is_active:true, is_featured:false,
   })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  const uploadFile = async (file) => {
+    if (!file) return
+    if (file.size > 5*1024*1024) { toast.error('Max 5MB'); return }
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const r = await fetch('/api/admin/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: reader.result, contentType: file.type, filename: file.name }) })
+        const d = await r.json(); if (!r.ok) throw new Error(d.error)
+        setForm(f => ({ ...f, image_url: d.url })); toast.success('Upload berhasil!')
+      } catch(e) { toast.error(e.message) }
+      setUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const submit = async (e) => {
     e.preventDefault(); setSaving(true)
@@ -53,7 +70,16 @@ function ProductForm({ product, onClose, onSaved }) {
             <div><label className="text-xs font-semibold">Berat (gram)</label><input type="number" value={form.weight_gram} onChange={e=>setForm({...form, weight_gram: parseInt(e.target.value) || 150})} className="w-full mt-1 px-3 py-2 border rounded"/></div>
           </div>
           <div><label className="text-xs font-semibold">Inspired By</label><input value={form.inspired_by} onChange={e=>setForm({...form, inspired_by: e.target.value})} className="w-full mt-1 px-3 py-2 border rounded"/></div>
-          <div><label className="text-xs font-semibold">URL Gambar</label><input value={form.image_url} onChange={e=>setForm({...form, image_url: e.target.value})} placeholder="https://..." className="w-full mt-1 px-3 py-2 border rounded"/>
+          <div>
+            <label className="text-xs font-semibold">Foto Produk (max 5MB)</label>
+            <div className="mt-1 flex items-center gap-2">
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-caisy-primary text-white rounded text-sm hover:brightness-110">
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Upload className="w-4 h-4"/>} Upload File
+                <input type="file" accept="image/*" className="hidden" onChange={e=>uploadFile(e.target.files[0])}/>
+              </label>
+              <span className="text-xs text-muted-foreground">atau paste URL di bawah</span>
+            </div>
+            <input value={form.image_url} onChange={e=>setForm({...form, image_url: e.target.value})} placeholder="https://... atau /api/files/..." className="mt-2 w-full px-3 py-2 border rounded"/>
             {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 w-24 h-28 object-cover rounded" />}
           </div>
           <div className="grid md:grid-cols-3 gap-3">
