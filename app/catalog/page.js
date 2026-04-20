@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Header, Footer, WhatsAppButton } from '@/components/layout-parts'
@@ -6,7 +7,7 @@ import { ProductCard } from '@/components/product-card'
 import { Search, X, Filter, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-export default function CatalogPage() {
+function CatalogContent() {
   const router = useRouter()
   const sp = useSearchParams()
   const [products, setProducts] = useState([])
@@ -55,13 +56,13 @@ export default function CatalogPage() {
           <aside className={`lg:w-64 lg:block ${showFilters ? 'block' : 'hidden'} bg-white p-5 rounded-xl shadow-sm border border-caisy-gold/20 h-fit`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-display font-semibold text-lg text-caisy-burgundy">Filter</h3>
-              <button className="lg:hidden" onClick={()=>setShowFilters(false)}><X/></button>
+              <button className="lg:hidden" onClick={() => setShowFilters(false)}><X /></button>
             </div>
 
             <form onSubmit={handleSearch} className="mb-4">
               <label className="text-xs font-semibold">Cari</label>
               <div className="relative mt-1">
-                <input value={filters.search} onChange={e=>setFilters({...filters, search: e.target.value})} placeholder="Nama parfum..." className="w-full pl-9 pr-3 py-2 border border-border rounded-md text-sm" />
+                <input value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} placeholder="Nama parfum..." className="w-full pl-9 pr-3 py-2 border border-border rounded-md text-sm" />
                 <Search className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
               </div>
             </form>
@@ -69,9 +70,9 @@ export default function CatalogPage() {
             <div className="mb-4">
               <label className="text-xs font-semibold">Kategori</label>
               <div className="mt-2 space-y-1">
-                {[{v:'',l:'Semua'},{v:'wanita',l:'Wanita'},{v:'pria',l:'Pria'},{v:'unisex',l:'Unisex'}].map(c => (
+                {[{ v: '', l: 'Semua' }, { v: 'wanita', l: 'Wanita' }, { v: 'pria', l: 'Pria' }, { v: 'unisex', l: 'Unisex' }].map(c => (
                   <label key={c.v} className="flex items-center gap-2 text-sm cursor-pointer hover:text-caisy-burgundy">
-                    <input type="radio" name="cat" checked={filters.category===c.v} onChange={()=>setFilters({...filters, category: c.v})} /> {c.l}
+                    <input type="radio" name="cat" checked={filters.category === c.v} onChange={() => setFilters({ ...filters, category: c.v })} /> {c.l}
                   </label>
                 ))}
               </div>
@@ -80,21 +81,21 @@ export default function CatalogPage() {
             <div className="mb-4">
               <label className="text-xs font-semibold">Rentang Harga</label>
               <div className="flex gap-2 mt-1">
-                <input type="number" placeholder="Min" value={filters.min_price} onChange={e=>setFilters({...filters, min_price: e.target.value})} className="w-full px-2 py-1.5 border border-border rounded-md text-sm" />
-                <input type="number" placeholder="Max" value={filters.max_price} onChange={e=>setFilters({...filters, max_price: e.target.value})} className="w-full px-2 py-1.5 border border-border rounded-md text-sm" />
+                <input type="number" placeholder="Min" value={filters.min_price} onChange={e => setFilters({ ...filters, min_price: e.target.value })} className="w-full px-2 py-1.5 border border-border rounded-md text-sm" />
+                <input type="number" placeholder="Max" value={filters.max_price} onChange={e => setFilters({ ...filters, max_price: e.target.value })} className="w-full px-2 py-1.5 border border-border rounded-md text-sm" />
               </div>
-              <button onClick={()=>load(1)} className="mt-2 text-xs btn-outline !py-1.5 w-full">Terapkan</button>
+              <button onClick={() => load(1)} className="mt-2 text-xs btn-outline !py-1.5 w-full">Terapkan</button>
             </div>
 
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={filters.in_stock} onChange={e=>setFilters({...filters, in_stock: e.target.checked})} /> Hanya yang tersedia
+              <input type="checkbox" checked={filters.in_stock} onChange={e => setFilters({ ...filters, in_stock: e.target.checked })} /> Hanya yang tersedia
             </label>
           </aside>
 
           <div className="flex-1">
             <div className="flex justify-between items-center mb-4 gap-2">
-              <button className="lg:hidden btn-outline !py-2 !px-3 flex items-center gap-2" onClick={()=>setShowFilters(true)}><Filter className="w-4 h-4"/> Filter</button>
-              <select value={filters.sort} onChange={e=>setFilters({...filters, sort: e.target.value})} className="ml-auto px-3 py-2 border border-border rounded-md text-sm bg-white">
+              <button className="lg:hidden btn-outline !py-2 !px-3 flex items-center gap-2" onClick={() => setShowFilters(true)}><Filter className="w-4 h-4" /> Filter</button>
+              <select value={filters.sort} onChange={e => setFilters({ ...filters, sort: e.target.value })} className="ml-auto px-3 py-2 border border-border rounded-md text-sm bg-white">
                 <option value="newest">Terbaru</option>
                 <option value="price_asc">Harga Terendah</option>
                 <option value="price_desc">Harga Tertinggi</option>
@@ -102,7 +103,7 @@ export default function CatalogPage() {
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-caisy-burgundy"/></div>
+              <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-caisy-burgundy" /></div>
             ) : products.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-xl">😔 Tidak ada produk ditemukan</p>
@@ -116,8 +117,8 @@ export default function CatalogPage() {
 
             {pagination.pages > 1 && (
               <div className="mt-8 flex justify-center gap-1">
-                {Array.from({length: pagination.pages}, (_, i) => i+1).map(n => (
-                  <button key={n} onClick={()=>load(n)} className={`w-9 h-9 rounded-md font-medium text-sm ${pagination.page===n ? 'bg-caisy-burgundy text-white' : 'bg-white border border-border hover:bg-caisy-gold/10'}`}>{n}</button>
+                {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(n => (
+                  <button key={n} onClick={() => load(n)} className={`w-9 h-9 rounded-md font-medium text-sm ${pagination.page === n ? 'bg-caisy-burgundy text-white' : 'bg-white border border-border hover:bg-caisy-gold/10'}`}>{n}</button>
                 ))}
               </div>
             )}
@@ -127,5 +128,32 @@ export default function CatalogPage() {
       <Footer />
       <WhatsAppButton />
     </div>
+  )
+}
+
+// Loading fallback saat Suspense menunggu
+function CatalogSkeleton() {
+  return (
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center mb-8">
+          <div className="h-4 w-32 bg-gray-200 rounded mx-auto mb-2 animate-pulse" />
+          <div className="h-10 w-64 bg-gray-200 rounded mx-auto animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-gray-100 rounded-xl h-80 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={<CatalogSkeleton />}>
+      <CatalogContent />
+    </Suspense>
   )
 }
