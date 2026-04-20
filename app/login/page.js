@@ -45,7 +45,6 @@ export default function LoginPage() {
             {loading && <Loader2 className="w-4 h-4 animate-spin"/>} Masuk
           </button>
           <p className="text-sm text-center text-muted-foreground">Belum punya akun? <Link href="/register" className="text-caisy-burgundy font-semibold hover:underline">Daftar</Link></p>
-          <p className="text-xs text-center text-muted-foreground border-t border-border pt-3">Admin default: <code className="bg-caisy-gold/10 px-1 rounded">admin@caisyperfume.com</code> / <code className="bg-caisy-gold/10 px-1 rounded">Admin@Caisy2024!</code></p>
         </form>
       </div>
       <Footer />
