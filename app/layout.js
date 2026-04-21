@@ -20,7 +20,6 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="icon" href="/Brandmark.png" type="image/png" />
       </head>
-    
       <body>
         <Providers>
           {children}
