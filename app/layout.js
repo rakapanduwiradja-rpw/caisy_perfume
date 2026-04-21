@@ -18,10 +18,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <head>
-
         <link rel="icon" href="/Brandmark.png" type="image/png" />
-
       </head>
+    
       <body>
         <Providers>
           {children}
