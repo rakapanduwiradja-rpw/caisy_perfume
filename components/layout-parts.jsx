@@ -31,12 +31,9 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-caisy-cream/90 backdrop-blur-md border-b border-caisy-primary/30">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
 
-        {/* Logo — Ganti div di bawah dengan <img> jika punya file logo */}
         <Link href="/" className="flex items-center gap-2">
-          {/* Opsi 1: Logo teks (aktif sekarang) */}
           <img src="/Secondary.png" alt="Caisy Perfume" className="h-10 w-auto" />
-          {/* Opsi 2: Logo gambar — hapus komentar di bawah dan isi path logo Anda */}
-          {/* <img src="/logo.png" alt="Caisy Perfume" className="h-10 w-auto" /> */}
+          
           <div>
             <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">{CONFIG.brandName}</h1>
             <p className="text-[10px] tracking-widest uppercase text-caisy-accent">{CONFIG.brandTagline}</p>
@@ -151,9 +148,9 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12 grid md:grid-cols-4 gap-8">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            {/* Logo footer — ganti dengan <img> jika punya file logo */}
-            <div <img src="/Brandmark.png" alt="Caisy Perfume" className="h-10 w-auto">C</div>
-            {/* <img src="/logo.png" alt="Caisy Perfume" className="h-10 w-auto" /> */}
+
+            <img src="/Brandmark.png" alt="Caisy Perfume" className="h-10 w-auto">
+
             <div>
               <h3 className="font-display text-xl font-bold">{CONFIG.brandName}</h3>
               <p className="text-[10px] tracking-widest uppercase text-caisy-primary">{CONFIG.brandTagline}</p>
