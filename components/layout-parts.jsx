@@ -34,9 +34,7 @@ export function Header() {
         {/* Logo — Ganti div di bawah dengan <img> jika punya file logo */}
         <Link href="/" className="flex items-center gap-2">
           {/* Opsi 1: Logo teks (aktif sekarang) */}
-          <div  /*className="w-10 h-10 rounded-full primary-gradient flex items-center justify-center text-white text-xl font-display font-bold shadow-md">
-            C*/ <img src="/Secondary.png" alt="Caisy Perfume" className="h-10 w-auto" />
-          </div>
+          <img src="/Secondary.png" alt="Caisy Perfume" className="h-10 w-auto" />
           {/* Opsi 2: Logo gambar — hapus komentar di bawah dan isi path logo Anda */}
           {/* <img src="/logo.png" alt="Caisy Perfume" className="h-10 w-auto" /> */}
           <div>
