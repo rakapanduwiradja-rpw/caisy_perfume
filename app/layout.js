@@ -4,12 +4,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { Providers } from '@/components/providers'
 
 export const metadata = {
-  title: 'Caisy Perfume — Wangian Mewah, Harga Terjangkau',
-  description: 'Koleksi parfum dupe berkualitas tinggi terinspirasi dari brand internasional. Wangi mewah tanpa menguras kantong.',
-  keywords: 'parfum, perfume, dupe perfume, wangi murah, caisy perfume, parfum wanita, parfum pria',
+  title: 'Caisy Perfume — Lets Scent Your Story',
+  description: 'Koleksi dupe perfume berkualitas, terinspirasi dari brand parfum ternama.',
+  keywords: 'parfum, perfume, dupe perfume, wangi murah, caisy perfume, parfum wanita, parfum pria, unisex parfum, perfume',
   openGraph: {
     title: 'Caisy Perfume',
-    description: 'Wangian Mewah, Harga Terjangkau',
+    description: 'Lets Scent Your Story Together',
     type: 'website',
   },
 }
