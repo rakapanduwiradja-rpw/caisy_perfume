@@ -154,7 +154,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             {/* Logo footer — ganti dengan <img> jika punya file logo */}
-            <div className="w-10 h-10 rounded-full bg-caisy-primary flex items-center justify-center text-white text-xl font-display font-bold">C</div>
+            <div <img src="/Brandmark.png" alt="Caisy Perfume" className="h-10 w-auto">C</div>
             {/* <img src="/logo.png" alt="Caisy Perfume" className="h-10 w-auto" /> */}
             <div>
               <h3 className="font-display text-xl font-bold">{CONFIG.brandName}</h3>
