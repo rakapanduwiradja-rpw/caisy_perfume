@@ -5,39 +5,52 @@ import { ShoppingBag, User, Search, Menu, X, LogOut, Package, Shield, Heart } fr
 import { useCart, useAuth } from './providers'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// ============================================================
-// KONFIGURASI — Ubah nilai di sini sesuai kebutuhan Anda
-// ============================================================
-const CONFIG = {
-  whatsapp: '628567177134',        // ← Ganti dengan nomor WA Anda (format: 62xxx)
-  email: 'cs@caisyperfume.com',     // ← Ganti dengan email CS Anda
-  phone: '+62 812-3456-7890',       // ← Ganti dengan nomor telepon tampil
-  instagram: 'https://instagram.com/caisyperfume',  // ← Link Instagram Anda
-  tiktok: 'https://tiktok.com/@caisyperfume',       // ← Link TikTok Anda
-  facebook: 'https://facebook.com/caisyperfume',    // ← Link Facebook Anda
-  brandName: 'Caisy',               // ← Nama brand
-  brandTagline: 'Perfume',          // ← Tagline di bawah nama
-  footerDesc: 'Lets Scent Your Story. Koleksi parfum dupe perfume brand ternama.',
+// Baca settings dari window (diisi oleh layout.js server-side)
+function getSettings() {
+  if (typeof window !== 'undefined' && window.__SITE_SETTINGS__) {
+    return window.__SITE_SETTINGS__
+  }
+  return {
+    brand_name: 'Caisy',
+    brand_tagline: 'Perfume',
+    brand_description: 'Wangian Mewah, Harga Terjangkau.',
+    whatsapp: '6281234567890',
+    email_cs: 'cs@caisyperfume.com',
+    phone: '+62 812-3456-7890',
+    instagram: '#',
+    tiktok: '#',
+    facebook: '#',
+    logo_primary: '/Primary.png',
+    logo_secondary: '/Secondary.png',
+    use_image_logo: false,
+  }
 }
-// ============================================================
 
 export function Header() {
   const { count } = useCart()
   const { user, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const s = getSettings()
 
   return (
     <header className="sticky top-0 z-40 bg-caisy-cream/90 backdrop-blur-md border-b border-caisy-primary/30">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
 
         <Link href="/" className="flex items-center gap-2">
-          <img src="/Secondary.png" alt="Caisy Perfume" className="h-10 w-auto" />
-          
-          <div>
-            <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">{CONFIG.brandName}</h1>
-            <p className="text-[10px] tracking-widest uppercase text-caisy-accent">{CONFIG.brandTagline}</p>
-          </div>
+          {s.use_image_logo ? (
+            <img src={s.logo_primary} alt={s.brand_name} className="h-10 w-auto object-contain" />
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-full primary-gradient flex items-center justify-center text-white text-xl font-display font-bold shadow-md">
+                {s.brand_name?.[0] || 'C'}
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">{s.brand_name}</h1>
+                <p className="text-[10px] tracking-widest uppercase text-caisy-accent">{s.brand_tagline}</p>
+              </div>
+            </>
+          )}
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
@@ -143,39 +156,47 @@ export function Header() {
 }
 
 export function Footer() {
+  const s = getSettings()
+
   return (
     <footer className="mt-20 burgundy-gradient text-white">
       <div className="container mx-auto px-4 py-12 grid md:grid-cols-4 gap-8">
         <div>
           <div className="flex items-center gap-2 mb-3">
-
-            <img src="/Brandmark.png" alt="Caisy Perfume" className="h-10 w-auto">
-
-            <div>
-              <h3 className="font-display text-xl font-bold">{CONFIG.brandName}</h3>
-              <p className="text-[10px] tracking-widest uppercase text-caisy-primary">{CONFIG.brandTagline}</p>
-            </div>
+            {s.use_image_logo ? (
+              <img src={s.logo_secondary} alt={s.brand_name} className="h-10 w-auto object-contain" />
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-display font-bold">
+                  {s.brand_name?.[0] || 'C'}
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold">{s.brand_name}</h3>
+                  <p className="text-[10px] tracking-widest uppercase text-caisy-gold">{s.brand_tagline}</p>
+                </div>
+              </>
+            )}
           </div>
-          <p className="text-sm text-white/80">{CONFIG.footerDesc}</p>
+          <p className="text-sm text-white/80">{s.brand_description}</p>
         </div>
 
         <div>
-          <h4 className="font-display font-semibold text-caisy-primary mb-3">Navigasi</h4>
+          <h4 className="font-display font-semibold text-caisy-gold mb-3">Navigasi</h4>
           <ul className="space-y-2 text-sm text-white/80">
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/catalog">Katalog</Link></li>
-            <li><Link href="/smart-search">AI Smart Search</Link></li>
-            <li><Link href="/waiting-list">Waiting List</Link></li>
+            <li><Link href="/" className="hover:text-white transition">Home</Link></li>
+            <li><Link href="/catalog" className="hover:text-white transition">Katalog</Link></li>
+            <li><Link href="/smart-search" className="hover:text-white transition">AI Smart Search</Link></li>
+            <li><Link href="/waiting-list" className="hover:text-white transition">Waiting List</Link></li>
           </ul>
         </div>
 
         <div>
-          <h4 className="font-display font-semibold text-caisy-primary mb-3">Bantuan</h4>
+          <h4 className="font-display font-semibold text-caisy-gold mb-3">Bantuan</h4>
           <ul className="space-y-2 text-sm text-white/80">
-            <li><Link href="/login">Akun Saya</Link></li>
-            <li><Link href="/orders">Cek Pesanan</Link></li>
+            <li><Link href="/login" className="hover:text-white transition">Akun Saya</Link></li>
+            <li><Link href="/orders" className="hover:text-white transition">Cek Pesanan</Link></li>
             <li>
-              <a href={`https://wa.me/${CONFIG.whatsapp}`} target="_blank" rel="noreferrer">
+              <a href={`https://wa.me/${s.whatsapp}`} target="_blank" rel="noreferrer" className="hover:text-white transition">
                 WhatsApp CS
               </a>
             </li>
@@ -183,49 +204,38 @@ export function Footer() {
         </div>
 
         <div>
-          <h4 className="font-display font-semibold text-caisy-primary mb-3">Hubungi Kami</h4>
-          <p className="text-sm text-white/80">{CONFIG.email}</p>
-          <p className="text-sm text-white/80">{CONFIG.phone}</p>
+          <h4 className="font-display font-semibold text-caisy-gold mb-3">Hubungi Kami</h4>
+          <a href={`mailto:${s.email_cs}`} className="text-sm text-white/80 hover:text-white block">{s.email_cs}</a>
+          <a href={`https://wa.me/${s.whatsapp}`} className="text-sm text-white/80 hover:text-white block mt-1">{s.phone}</a>
           <div className="flex gap-3 mt-3">
-            <a
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition text-xs font-bold"
-              href={CONFIG.instagram}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Instagram"
-            >IG</a>
-            <a
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition text-xs font-bold"
-              href={CONFIG.tiktok}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="TikTok"
-            >TT</a>
-            <a
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-caisy-primary flex items-center justify-center transition text-xs font-bold"
-              href={CONFIG.facebook}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Facebook"
-            >FB</a>
+            {s.instagram && s.instagram !== '#' && (
+              <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center transition text-xs font-bold" href={s.instagram} target="_blank" rel="noreferrer" aria-label="Instagram">IG</a>
+            )}
+            {s.tiktok && s.tiktok !== '#' && (
+              <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center transition text-xs font-bold" href={s.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok">TT</a>
+            )}
+            {s.facebook && s.facebook !== '#' && (
+              <a className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center transition text-xs font-bold" href={s.facebook} target="_blank" rel="noreferrer" aria-label="Facebook">FB</a>
+            )}
           </div>
         </div>
       </div>
       <div className="border-t border-white/10 text-center text-xs py-4 text-white/60">
-        © {new Date().getFullYear()} {CONFIG.brandName} {CONFIG.brandTagline}. All rights reserved.
+        © {new Date().getFullYear()} {s.brand_name} {s.brand_tagline}. All rights reserved.
       </div>
     </footer>
   )
 }
 
 export function WhatsAppButton() {
+  const s = getSettings()
   return (
     <a
-      href={`https://wa.me/${CONFIG.whatsapp}`}
+      href={`https://wa.me/${s.whatsapp}`}
       target="_blank"
       rel="noreferrer"
       className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-xl z-30 hover:scale-110 transition"
-      aria-label="Chat WhatsApp"
+      aria-label="Chat WhatsApp CS"
     >
       <svg viewBox="0 0 32 32" className="w-7 h-7 fill-white">
         <path d="M19.11 17.21c-.29-.15-1.7-.84-1.96-.94-.26-.1-.45-.14-.64.14-.19.29-.73.94-.9 1.13-.16.19-.33.21-.62.07-.29-.14-1.22-.45-2.32-1.43-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.45.13-.59.13-.13.29-.33.43-.5.14-.16.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.14-.64-1.53-.87-2.1-.23-.55-.47-.48-.64-.49-.16-.01-.36-.01-.55-.01s-.5.07-.76.36c-.26.29-1 1-1 2.44 0 1.44 1.02 2.82 1.16 3.02.14.19 2 3.05 4.85 4.28.68.29 1.21.46 1.62.59.68.22 1.29.19 1.77.11.54-.08 1.7-.69 1.93-1.36.24-.67.24-1.25.17-1.36-.07-.12-.26-.19-.55-.33z"/>
