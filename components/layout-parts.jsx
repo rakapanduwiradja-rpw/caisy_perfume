@@ -149,7 +149,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-2 mb-3">
 
-            <img src="/Primary.png" alt="Caisy Perfume" className="h-10 w-auto">
+            <img src="/Brandmark.png" alt="Caisy Perfume" className="h-10 w-auto">
 
             <div>
               <h3 className="font-display text-xl font-bold">{CONFIG.brandName}</h3>
