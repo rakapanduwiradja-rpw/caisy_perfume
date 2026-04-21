@@ -6,13 +6,11 @@ import { Header, Footer, WhatsAppButton } from '@/components/layout-parts'
 import { useAuth } from '@/components/providers'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
-
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [form, setForm] = useState({ email:'', password:'' })
   const [loading, setLoading] = useState(false)
-
   const submit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -23,7 +21,6 @@ export default function LoginPage() {
     } catch(e) { toast.error(e.message) }
     setLoading(false)
   }
-
   return (
     <div className="min-h-screen">
       <Header />
