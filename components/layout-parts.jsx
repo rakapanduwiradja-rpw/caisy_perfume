@@ -1,30 +1,41 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ShoppingBag, User, Search, Menu, X, LogOut, Package, Shield, Heart } from 'lucide-react'
 import { useCart, useAuth } from './providers'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// Baca config dari window (diisi layout.js server-side)
-// Fallback ke nilai default jika belum ada
+const DEFAULTS = {
+  brand_name: 'Caisy',
+  brand_tagline: 'Perfume',
+  description: 'Lets Scent Your Story. Koleksi dupe perfume premium terinspirasi brand ternama.',
+  whatsapp_cs: '628567177134',
+  email_cs: 'cs@caisyperfume.com',
+  phone: '+62 812-3456-7890',
+  instagram: '',
+  tiktok: '',
+  facebook: '',
+  logo_primary: '/Primary.png',
+  logo_secondary: '/Secondary.png',
+  use_image_logo: false,
+}
+
+// Hook untuk membaca config — fetch langsung dari API agar selalu fresh
 function useSiteConfig() {
-  if (typeof window !== 'undefined' && window.__SITE_CONFIG__) {
-    return window.__SITE_CONFIG__
-  }
-  return {
-    brand_name: 'Caisy',
-    brand_tagline: 'Perfume',
-    description: 'Wangian Mewah, Harga Terjangkau.',
-    whatsapp_cs: '6281234567890',
-    email_cs: 'cs@caisyperfume.com',
-    phone: '+62 812-3456-7890',
-    instagram: '',
-    tiktok: '',
-    facebook: '',
-    logo_primary: '/Primary.png',
-    logo_secondary: '/Secondary.png',
-    use_image_logo: false,
-  }
+  const [cfg, setCfg] = useState(DEFAULTS)
+
+  useEffect(() => {
+    fetch('/api/settings', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.settings) {
+          setCfg(prev => ({ ...prev, ...d.settings }))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  return cfg
 }
 
 export function Header() {
@@ -36,22 +47,41 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-caisy-cream/90 backdrop-blur-md border-b border-caisy-primary/30">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
 
-        <Link href="/" className="flex items-center gap-2">
+        {/* LOGO */}
+        <Link href="/" className="flex items-center gap-3 shrink-0">
           {cfg.use_image_logo ? (
-            <img src={cfg.logo_primary} alt={cfg.brand_name} className="h-10 w-auto object-contain" />
-          ) : (
-            <>
-              <div className="w-10 h-10 rounded-full primary-gradient flex items-center justify-center text-white text-xl font-display font-bold shadow-md">
-                {(cfg.brand_name || 'C')[0]}
-              </div>
-              <div>
-                <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">{cfg.brand_name}</h1>
-                <p className="text-[10px] tracking-widest uppercase text-caisy-accent">{cfg.brand_tagline}</p>
-              </div>
-            </>
-          )}
+            // Logo gambar — ukuran proporsional
+            <img
+              src={cfg.logo_primary}
+              alt={cfg.brand_name}
+              className="h-12 w-auto object-contain"
+              style={{ maxWidth: '160px', minHeight: '48px' }}
+              onError={e => {
+                // Fallback ke teks jika gambar tidak ditemukan
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
+            />
+          ) : null}
+          {/* Logo teks — tampil jika use_image_logo false ATAU gambar error */}
+          <div
+            className="flex items-center gap-2"
+            style={{ display: cfg.use_image_logo ? 'none' : 'flex' }}
+          >
+            <div className="w-10 h-10 rounded-full primary-gradient flex items-center justify-center text-white text-xl font-display font-bold shadow-md">
+              {(cfg.brand_name || 'C')[0]}
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-bold text-caisy-primary leading-none">
+                {cfg.brand_name}
+              </h1>
+              <p className="text-[10px] tracking-widest uppercase text-caisy-accent">
+                {cfg.brand_tagline}
+              </p>
+            </div>
+          </div>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
@@ -151,20 +181,31 @@ export function Footer() {
     <footer className="mt-20 burgundy-gradient text-white">
       <div className="container mx-auto px-4 py-12 grid md:grid-cols-4 gap-8">
         <div>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-3 mb-4">
             {cfg.use_image_logo ? (
-              <img src={cfg.logo_secondary} alt={cfg.brand_name} className="h-10 w-auto object-contain" />
-            ) : (
-              <>
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-display font-bold">
-                  {(cfg.brand_name || 'C')[0]}
-                </div>
-                <div>
-                  <h3 className="font-display text-xl font-bold">{cfg.brand_name}</h3>
-                  <p className="text-[10px] tracking-widest uppercase opacity-70">{cfg.brand_tagline}</p>
-                </div>
-              </>
-            )}
+              <img
+                src={cfg.logo_secondary}
+                alt={cfg.brand_name}
+                className="w-auto object-contain"
+                style={{ height: '52px', maxWidth: '180px' }}
+                onError={e => {
+                  e.target.style.display = 'none'
+                  e.target.nextSibling.style.display = 'flex'
+                }}
+              />
+            ) : null}
+            <div
+              className="flex items-center gap-2"
+              style={{ display: cfg.use_image_logo ? 'none' : 'flex' }}
+            >
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-display font-bold">
+                {(cfg.brand_name || 'C')[0]}
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-bold">{cfg.brand_name}</h3>
+                <p className="text-[10px] tracking-widest uppercase opacity-70">{cfg.brand_tagline}</p>
+              </div>
+            </div>
           </div>
           <p className="text-sm text-white/80">{cfg.description}</p>
         </div>
