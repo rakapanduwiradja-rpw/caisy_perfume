@@ -118,3 +118,89 @@ h1, h2, h3, h4, h5, h6, .font-display {
   }
   .animate-float { animation: float 4s ease-in-out infinite; }
 }
+/* 
+  Tambahkan ini ke bagian BAWAH file globals.css yang sudah ada.
+  Jangan hapus isi globals.css yang lama — HANYA tambahkan bagian ini di paling bawah.
+*/
+
+/* Map CSS variables dari admin settings ke Tailwind classes */
+.text-caisy-burgundy,
+.text-caisy-primary {
+  color: var(--caisy-primary-color) !important;
+}
+
+.bg-caisy-primary,
+.bg-caisy-burgundy {
+  background-color: var(--caisy-primary-color) !important;
+}
+
+.border-caisy-primary,
+.border-caisy-burgundy {
+  border-color: var(--caisy-primary-color) !important;
+}
+
+.text-caisy-gold,
+.text-caisy-accent,
+.text-caisy-secondary {
+  color: var(--caisy-secondary-color) !important;
+}
+
+.bg-caisy-gold {
+  background-color: var(--caisy-secondary-color) !important;
+}
+
+.bg-caisy-cream,
+.bg-caisy-accent {
+  background-color: var(--caisy-accent-color) !important;
+}
+
+/* Primary gradient menggunakan CSS variable */
+.primary-gradient,
+.burgundy-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--caisy-primary-color) 0%,
+    color-mix(in srgb, var(--caisy-primary-color) 70%, black) 100%
+  ) !important;
+}
+
+/* Hover states */
+.hover\:bg-caisy-primary\/10:hover {
+  background-color: color-mix(in srgb, var(--caisy-primary-color) 10%, transparent) !important;
+}
+
+.hover\:bg-caisy-primary:hover {
+  background-color: var(--caisy-primary-color) !important;
+}
+
+/* Border with opacity */
+.border-caisy-gold\/20 {
+  border-color: color-mix(in srgb, var(--caisy-secondary-color) 20%, transparent) !important;
+}
+
+.border-caisy-gold\/30 {
+  border-color: color-mix(in srgb, var(--caisy-secondary-color) 30%, transparent) !important;
+}
+
+.border-caisy-primary\/30 {
+  border-color: color-mix(in srgb, var(--caisy-primary-color) 30%, transparent) !important;
+}
+
+/* Button primary */
+.btn-primary {
+  background-color: var(--caisy-primary-color) !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-outline {
+  border: 1px solid var(--caisy-primary-color) !important;
+  color: var(--caisy-primary-color) !important;
+}
+
+.btn-outline:hover {
+  background-color: color-mix(in srgb, var(--caisy-primary-color) 10%, transparent) !important;
+}
