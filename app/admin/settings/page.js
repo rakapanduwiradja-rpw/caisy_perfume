@@ -66,7 +66,7 @@ export default function AdminSettingsPage() {
   const [preview, setPreview] = useState(false)
 
   useEffect(() => {
-    fetch('/api/[[...path]]?path=admin/settings')
+    fetch('/api/admin/settings')
       .then(r => r.json())
       .then(d => { if (d.settings) setSettings({ ...DEFAULT_SETTINGS, ...d.settings }) })
       .catch(() => {})
@@ -76,10 +76,10 @@ export default function AdminSettingsPage() {
   const save = async (section) => {
     setSaving(true)
     try {
-      const r = await fetch('/api/[[...path]]', {
+      const r = await ffetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: ['admin', 'settings'], settings })
+        body: JSON.stringify({ settings })
       })
       const d = await r.json()
       if (d.ok) toast.success('Pengaturan berhasil disimpan!')
