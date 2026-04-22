@@ -53,7 +53,7 @@ function BannerSlider({ banners }) {
         <AnimatePresence mode="wait">
           <motion.div key={idx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }} className="absolute inset-0">
             <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(61,54,38,0.6) 0%, rgba(61,54,38,0.2) 100%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(183, 110, 121,0.6) 0%, rgba(183, 110, 121,0.2) 100%)' }} />
             <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-16 text-white">
               {b.title && <h2 className="font-display text-2xl md:text-4xl font-bold mb-2">{b.title}</h2>}
               {b.subtitle && <p className="text-sm md:text-lg mb-4 max-w-xl">{b.subtitle}</p>}
