@@ -100,7 +100,7 @@ function App() {
         <div className="absolute inset-0">
           <img src={HERO_IMAGE_URL} alt="hero" className="w-full h-full object-cover" />
           {/* ← GRADASI WARNA HERO — ubah nilai HERO_GRADIENT di atas */}
-          <div className="absolute inset-0" style={{ background: HERO_GRADIENT }} />
+          <div className="absolute inset-0 caisy-hero-overlay" style={{ background: HERO_GRADIENT }} />
         </div>
         <div className="relative container mx-auto px-4 py-24 md:py-36 grid md:grid-cols-2">
           <div className="text-white">
