@@ -67,7 +67,8 @@
         "uuid": "^9.0.1",
         "vaul": "^1.1.2",
         "zod": "^3.25.67",
-        "nodemailer": "^6.9.0"
+        "nodemailer": "^6.9.0",
+        "resend": "^4.0.0"
     },
     "devDependencies": {
         "autoprefixer": "^10.4.19",
