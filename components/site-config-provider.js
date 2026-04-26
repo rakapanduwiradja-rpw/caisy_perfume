@@ -1,85 +1,93 @@
 'use client'
 import { useEffect } from 'react'
 
-// Komponen ini fetch settings dari API setiap halaman dibuka
-// dan langsung terapkan ke CSS variables + window.__SITE_CONFIG__
-// Tidak bergantung pada server-side rendering
 export function SiteConfigProvider({ children }) {
   useEffect(() => {
-    async function loadAndApplySettings() {
+    async function apply() {
       try {
         const res = await fetch('/api/settings', { cache: 'no-store' })
         const data = await res.json()
         const s = data.settings || {}
 
-        // Simpan ke window agar komponen lain bisa baca
         window.__SITE_CONFIG__ = {
-          brand_name:     s.brand_name     || 'Caisy',
-          brand_tagline:  s.brand_tagline  || 'Perfume',
-          description:    s.description    || 'Wangian Mewah, Harga Terjangkau.',
-          whatsapp_cs:    s.whatsapp_cs    || '6281234567890',
-          email_cs:       s.email_cs       || 'cs@caisyperfume.com',
-          phone:          s.phone          || '+62 812-3456-7890',
-          instagram:      s.instagram      || '',
-          tiktok:         s.tiktok         || '',
-          facebook:       s.facebook       || '',
-          logo_primary:   s.logo_primary   || '/Primary.png',
-          logo_secondary: s.logo_secondary || '/Secondary.png',
-          use_image_logo: s.use_image_logo || false,
+          brand_name:       s.brand_name     || 'Caisy',
+          brand_tagline:    s.brand_tagline  || 'Perfume',
+          description:      s.description    || 'Wangian Mewah, Harga Terjangkau.',
+          whatsapp_cs:      s.whatsapp_cs    || '6281234567890',
+          email_cs:         s.email_cs       || 'cs@caisyperfume.com',
+          phone:            s.phone          || '+62 812-3456-7890',
+          instagram:        s.instagram      || '',
+          tiktok:           s.tiktok         || '',
+          facebook:         s.facebook       || '',
+          logo_primary:     s.logo_primary   || '/Primary.png',
+          logo_secondary:   s.logo_secondary || '/Secondary.png',
+          use_image_logo:   s.use_image_logo || false,
+          maintenance_mode: s.maintenance_mode || false,
         }
 
-        // Terapkan CSS variables langsung ke root element
         const root = document.documentElement
-        if (s.color_primary)   root.style.setProperty('--caisy-primary-color',   s.color_primary)
-        if (s.color_secondary) root.style.setProperty('--caisy-secondary-color', s.color_secondary)
-        if (s.color_accent)    root.style.setProperty('--caisy-accent-color',    s.color_accent)
-        if (s.color_text)      root.style.setProperty('--caisy-text-color',      s.color_text)
-        if (s.color_card)      root.style.setProperty('--caisy-card-color',      s.color_card)
-        if (s.color_border)    root.style.setProperty('--caisy-border-color',    s.color_border)
-        if (s.color_success)   root.style.setProperty('--caisy-success-color',   s.color_success)
-        if (s.color_danger)    root.style.setProperty('--caisy-danger-color',    s.color_danger)
+        const colors = {
+          '--caisy-primary-color':   s.color_primary,
+          '--caisy-secondary-color': s.color_secondary,
+          '--caisy-accent-color':    s.color_accent,
+          '--caisy-text-color':      s.color_text,
+          '--caisy-card-color':      s.color_card,
+          '--caisy-border-color':    s.color_border,
+          '--caisy-success-color':   s.color_success,
+          '--caisy-danger-color':    s.color_danger,
+        }
+        for (const [v, val] of Object.entries(colors)) {
+          if (val) root.style.setProperty(v, val)
+        }
 
-        // Update favicon secara dinamis
+        // Fix gradasi hero (inline style tidak bisa di-override CSS biasa)
+        if (s.color_primary) {
+          const hex = s.color_primary.replace('#','')
+          const r = parseInt(hex.slice(0,2),16)
+          const g = parseInt(hex.slice(2,4),16)
+          const b = parseInt(hex.slice(4,6),16)
+          const grad = `linear-gradient(to right,rgba(${r},${g},${b},0.95) 0%,rgba(${r},${g},${b},0.75) 50%,rgba(${r},${g},${b},0.2) 100%)`
+
+          // Inject style tag
+          let st = document.getElementById('caisy-dyn')
+          if (!st) { st = document.createElement('style'); st.id = 'caisy-dyn'; document.head.appendChild(st) }
+          st.textContent = `
+            .caisy-hero-overlay { background: ${grad} !important; }
+          `
+
+          // Apply directly to hero overlay element if already rendered
+          document.querySelectorAll('.caisy-hero-overlay').forEach(el => {
+            el.style.background = grad
+          })
+        }
+
+        // Fix favicon — remove emoji, use file
         if (s.favicon) {
-          let link = document.querySelector("link[rel~='icon']")
-          if (!link) {
-            link = document.createElement('link')
-            link.rel = 'icon'
-            document.head.appendChild(link)
-          }
-          link.href = s.favicon
+          document.querySelectorAll("link[rel*='icon']").forEach(el => el.remove())
+          const fav = document.createElement('link')
+          fav.rel = 'icon'
+          fav.href = s.favicon
+          fav.type = 'image/png'
+          document.head.appendChild(fav)
         }
 
-        // Update title jika berbeda
-        if (s.meta_title && document.title !== s.meta_title) {
-          document.title = s.meta_title
+        if (s.meta_title) document.title = s.meta_title
+
+        // Maintenance mode
+        if (s.maintenance_mode && !window.location.pathname.startsWith('/admin') && !window.location.pathname.startsWith('/login')) {
+          document.body.style.overflow = 'hidden'
+          const overlay = document.createElement('div')
+          overlay.style.cssText = 'position:fixed;inset:0;background:#FAF7F2;z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;'
+          overlay.innerHTML = `<div><h1 style="color:#7B1E2C;font-family:Georgia,serif;font-size:2rem;margin-bottom:12px;">🔧 Sedang Pemeliharaan</h1><p style="color:#888;">Kembali lagi sebentar ya!</p></div>`
+          document.body.appendChild(overlay)
         }
 
-        // Update logo di header dan footer (DOM manipulation)
-        applyLogo(s)
-
-      } catch (e) {
-        console.warn('Could not load site settings:', e.message)
+      } catch(e) {
+        console.warn('SiteConfig error:', e.message)
       }
     }
-
-    loadAndApplySettings()
+    apply()
   }, [])
 
   return children
-}
-
-function applyLogo(s) {
-  if (!s.use_image_logo) return
-
-  // Update semua elemen logo di halaman
-  const logoContainers = document.querySelectorAll('[data-logo="header"]')
-  logoContainers.forEach(el => {
-    el.innerHTML = `<img src="${s.logo_primary}" alt="${s.brand_name}" style="height:40px;width:auto;object-fit:contain;" />`
-  })
-
-  const footerLogos = document.querySelectorAll('[data-logo="footer"]')
-  footerLogos.forEach(el => {
-    el.innerHTML = `<img src="${s.logo_secondary}" alt="${s.brand_name}" style="height:40px;width:auto;object-fit:contain;" />`
-  })
 }
