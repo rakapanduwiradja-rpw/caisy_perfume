@@ -27,7 +27,7 @@ const HERO_IMAGE = 'https://images.pexels.com/photos/36389341/pexels-photo-36389
 // =====================================================================
 
 // ← UBAH NILAI INI untuk mengganti gradasi warna di hero section
-const HERO_GRADIENT = 'linear-gradient(to right, rgba(123,30,44,0.95) 0%, rgba(123,30,44,0.75) 50%, rgba(123,30,44,0.2) 100%)'
+const HERO_GRADIENT = 'linear-gradient(to right, rgba(183,110,121,0.95) 0%, rgba(183,110,121,0.75) 50%, rgba(183,110,121,0.2) 100%)'
 //                                                ^^^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^^^
 //                                                Kiri (pekat)                    Tengah (sedang)                  Kanan (transparan)
 
