@@ -204,3 +204,77 @@ h1, h2, h3, h4, h5, h6, .font-display {
 .btn-outline:hover {
   background-color: color-mix(in srgb, var(--caisy-primary-color) 10%, transparent) !important;
 }
+
+/* ============================================================
+   TAMBAHKAN DI BAGIAN PALING BAWAH globals.css
+   ============================================================ */
+
+:root {
+  --caisy-primary-color:   #7B1E2C;
+  --caisy-secondary-color: #C9A96E;
+  --caisy-accent-color:    #FAF7F2;
+  --caisy-text-color:      #1A1A2E;
+  --caisy-card-color:      #FFFFFF;
+  --caisy-border-color:    #E5E7EB;
+  --caisy-success-color:   #16A34A;
+  --caisy-danger-color:    #DC2626;
+}
+
+.text-caisy-burgundy, .text-caisy-primary { color: var(--caisy-primary-color) !important; }
+.bg-caisy-primary, .bg-caisy-burgundy { background-color: var(--caisy-primary-color) !important; }
+.border-caisy-primary, .border-caisy-burgundy { border-color: var(--caisy-primary-color) !important; }
+.text-caisy-gold, .text-caisy-secondary, .text-caisy-accent { color: var(--caisy-secondary-color) !important; }
+.bg-caisy-gold { background-color: var(--caisy-secondary-color) !important; }
+.bg-caisy-cream, .bg-caisy-accent { background-color: var(--caisy-accent-color) !important; }
+
+.primary-gradient, .burgundy-gradient {
+  background: linear-gradient(135deg, var(--caisy-primary-color) 0%, color-mix(in srgb, var(--caisy-primary-color) 70%, #000) 100%) !important;
+}
+.gold-gradient {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--caisy-secondary-color) 30%, #fff) 0%, color-mix(in srgb, var(--caisy-secondary-color) 20%, #fff) 100%) !important;
+}
+
+.hover\:bg-caisy-primary\/10:hover { background-color: color-mix(in srgb, var(--caisy-primary-color) 10%, transparent) !important; }
+.hover\:bg-caisy-primary:hover { background-color: var(--caisy-primary-color) !important; }
+.hover\:text-caisy-primary:hover { color: var(--caisy-primary-color) !important; }
+.hover\:text-caisy-gold:hover { color: var(--caisy-secondary-color) !important; }
+
+.border-caisy-gold\/20 { border-color: color-mix(in srgb, var(--caisy-secondary-color) 20%, transparent) !important; }
+.border-caisy-gold\/30 { border-color: color-mix(in srgb, var(--caisy-secondary-color) 30%, transparent) !important; }
+.border-caisy-gold\/50 { border-color: color-mix(in srgb, var(--caisy-secondary-color) 50%, transparent) !important; }
+.border-caisy-primary\/30 { border-color: color-mix(in srgb, var(--caisy-primary-color) 30%, transparent) !important; }
+
+.bg-caisy-gold\/10 { background-color: color-mix(in srgb, var(--caisy-secondary-color) 10%, transparent) !important; }
+.bg-caisy-gold\/15 { background-color: color-mix(in srgb, var(--caisy-secondary-color) 15%, transparent) !important; }
+.bg-caisy-gold\/20 { background-color: color-mix(in srgb, var(--caisy-secondary-color) 20%, transparent) !important; }
+.bg-caisy-primary\/10 { background-color: color-mix(in srgb, var(--caisy-primary-color) 10%, transparent) !important; }
+
+.btn-primary {
+  background-color: var(--caisy-primary-color) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  transition: filter 0.2s;
+}
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-outline {
+  border: 1.5px solid var(--caisy-primary-color) !important;
+  color: var(--caisy-primary-color) !important;
+  background: transparent;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.btn-outline:hover { background-color: color-mix(in srgb, var(--caisy-primary-color) 8%, transparent) !important; }
+
+.btn-gold {
+  background-color: var(--caisy-secondary-color) !important;
+  color: var(--caisy-primary-color) !important;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 6px;
+  transition: filter 0.2s;
+  display: inline-block;
+}
+.btn-gold:hover { filter: brightness(1.1); }
+.fill-caisy-gold { fill: var(--caisy-secondary-color) !important; }
